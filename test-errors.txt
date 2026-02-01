@@ -1,0 +1,92 @@
+Building for debugging...
+[0/3] Write swift-version--1AB21518FC5DEDBE.txt
+[2/14] Compiling HarmoniaCoreTests MockTagWriterPort.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+error: emit-module command failed with exit code 1 (use -v to see invocation)
+[3/14] Emitting module HarmoniaCoreTests
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+[4/14] Compiling HarmoniaCoreTests MockDecoderPort.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+[5/14] Compiling HarmoniaCoreTests DefaultPlaybackServiceTests.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+[6/14] Compiling HarmoniaCoreTests MockClockPort.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+[7/14] Compiling HarmoniaCoreTests CoreErrorTests.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+[8/14] Compiling HarmoniaCoreTests StreamInfoTests.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+[9/14] Compiling HarmoniaCoreTests TagBundleTests.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+[10/14] Compiling HarmoniaCoreTests MockTagReaderPort.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+[11/14] Compiling HarmoniaCoreTests MockAudioOutputPort.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+[12/14] Compiling HarmoniaCoreTests MockFileAccessPort.swift
+/Users/billychen/Work with chatGPT/HarmoniaCore/apple-swift/Tests/HarmoniaCoreTests/Models/CoreErrorTests.swift:10:8: error: no such module 'XCTest'
+  8 | //
+  9 | 
+ 10 | import XCTest
+    |        `- error: no such module 'XCTest'
+ 11 | @testable import HarmoniaCore
+ 12 | 
+error: fatalError

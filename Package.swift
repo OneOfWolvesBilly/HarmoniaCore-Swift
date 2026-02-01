@@ -20,6 +20,14 @@ let package = Package(
             swiftSettings: [
                 .enableExperimentalFeature("StrictConcurrency")
             ]
+        ),
+        .testTarget(
+            name: "HarmoniaCoreTests",
+            dependencies: ["HarmoniaCore"],
+            path: "Tests/HarmoniaCoreTests",
+            swiftSettings: [
+                .enableExperimentalFeature("StrictConcurrency")
+            ]
         )
     ]
 )

@@ -25,6 +25,7 @@ public final class DefaultPlaybackService: PlaybackService {
     private var _state: PlaybackState = .stopped
     private var playbackStartTime: UInt64 = 0
     private var lastKnownPosition: Double = 0
+    private var framesPerBuffer: Int = 4096
     
     private let lock = NSLock()
     private var isPlaybackLoopRunning = false
@@ -65,11 +66,13 @@ public final class DefaultPlaybackService: PlaybackService {
                 try info.validate()
                 
                 // Configure audio output
+                let framesPerBuffer = Self.nearestPowerOfTwo(Int(info.sampleRate * 0.1))
                 try audio.configure(
                     sampleRate: info.sampleRate,
                     channels: info.channels,
-                    framesPerBuffer: 512
+                    framesPerBuffer: framesPerBuffer
                 )
+                self.framesPerBuffer = framesPerBuffer
                 
                 // Update state
                 currentHandle = handle
@@ -180,16 +183,22 @@ public final class DefaultPlaybackService: PlaybackService {
             }
             
             do {
+                let wasPlaying = _state == .playing
+
+                // Flush AVAudioEngine's buffer queue so queued audio from the
+                // old position is discarded before decoding from the new position.
+                audio.flush()
+
                 try decoder.seek(handle, toSeconds: seconds)
                 lastKnownPosition = seconds
-                
-                // Reset playback start time if playing
-                if _state == .playing {
+
+                // Reset clock if playing so currentTime() tracks from new position.
+                if wasPlaying {
                     playbackStartTime = clock.now()
                 }
-                
+
                 logger.info("Seeked to \(seconds)s")
-                
+
             } catch let error as CoreError {
                 throw error
             } catch {
@@ -214,10 +223,12 @@ public final class DefaultPlaybackService: PlaybackService {
     
     private func calculateCurrentPosition() -> Double {
         switch _state {
-        case .playing:
+        case .playing, .buffering:
+            // .buffering is used during EOF drain — clock keeps running so
+            // the progress bar continues to the end of the track.
             let elapsed = Double(clock.now() - playbackStartTime) / 1_000_000_000.0
-            return lastKnownPosition + elapsed
-        case .paused, .buffering:
+            return min(lastKnownPosition + elapsed, streamInfo?.duration ?? 0)
+        case .paused:
             return lastKnownPosition
         case .stopped, .error:
             return 0.0
@@ -233,19 +244,45 @@ public final class DefaultPlaybackService: PlaybackService {
         lastKnownPosition = 0
     }
     
+    // MARK: - Private Utilities
+
+    /// Returns the nearest power of two to `value`.
+    ///
+    /// Used to calculate an appropriate buffer size from the audio stream's
+    /// sample rate. Targets ~100ms of audio per buffer, rounded to a power of
+    /// two for compatibility with AVAudioEngine.
+    ///
+    /// Examples:
+    /// - 8000Hz  → 512  frames (~64ms)
+    /// - 22050Hz → 2048 frames (~93ms)
+    /// - 44100Hz → 4096 frames (~93ms)
+    /// - 96000Hz → 8192 frames (~85ms)
+    private static func nearestPowerOfTwo(_ value: Int) -> Int {
+        guard value > 0 else { return 512 }
+        var result = 1
+        while result < value { result <<= 1 }
+        let lower = result >> 1
+        return (value - lower) < (result - value) ? lower : result
+    }
+
     private func startPlaybackLoop() {
         // Prevent multiple playback loops
         guard !isPlaybackLoopRunning else { return }
-        
         isPlaybackLoopRunning = true
-        
-        Task.detached { [weak self] in
+
+        // Use DispatchQueue instead of Task.detached.
+        // render() uses DispatchSemaphore.wait() for backpressure, which must
+        // NOT be called from a Swift async Task (causes thread pool starvation).
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
             guard let self = self else { return }
-            
-            let bufferSize = 4096 // frames
-            let channelCount = self.lock.withLock { self.streamInfo?.channels ?? 2 }
+
+            let (bufferSize, channelCount, sampleRate) = self.lock.withLock {
+                (self.framesPerBuffer,
+                 self.streamInfo?.channels ?? 2,
+                 self.streamInfo?.sampleRate ?? 44100.0)
+            }
             var buffer = [Float](repeating: 0, count: bufferSize * channelCount)
-            
+
             while true {
                 // Check if we should continue
                 let (shouldContinue, handle) = self.lock.withLock { () -> (Bool, DecodeHandle?) in
@@ -255,13 +292,11 @@ public final class DefaultPlaybackService: PlaybackService {
                     }
                     return (true, h)
                 }
-                
-                guard shouldContinue, let handle = handle else {
-                    break
-                }
-                
+
+                guard shouldContinue, let handle = handle else { break }
+
                 do {
-                    // Decode frames
+                    // Decode next chunk
                     let framesRead = try buffer.withUnsafeMutableBufferPointer { ptr in
                         try self.decoder.read(
                             handle,
@@ -269,23 +304,43 @@ public final class DefaultPlaybackService: PlaybackService {
                             maxFrames: bufferSize
                         )
                     }
-                    
+
                     guard framesRead > 0 else {
-                        // End of stream
+                        // EOF: transition to .buffering during drain so that
+                        // the HarmoniaPlayer polling loop does not mistake this
+                        // for a premature stop and call trackDidFinishPlaying().
+                        // Mark loop finished immediately so a new play() call
+                        // can start a fresh loop without waiting.
+                        self.lock.withLock {
+                            self.isPlaybackLoopRunning = false
+                            self._state = .buffering
+                        }
+
+                        // Wait for AVAudioEngine to drain the last in-flight
+                        // buffers (max 2) before calling audio.stop().
+                        let drainSeconds = Double(bufferSize) / sampleRate * 2.0
+                        Thread.sleep(forTimeInterval: drainSeconds)
+
                         self.logger.info("Playback completed")
                         self.lock.withLock {
                             self.audio.stop()
                             self._state = .stopped
-                            self.isPlaybackLoopRunning = false
+                            // Seek decoder back to 0 so the user can press play
+                            // again without needing to reload the track.
+                            if let handle = self.currentHandle {
+                                try? self.decoder.seek(handle, toSeconds: 0)
+                                self.lastKnownPosition = 0
+                            }
                         }
                         break
                     }
-                    
-                    // Render to audio output
+
+                    // render() blocks via DispatchSemaphore until a slot is free.
+                    // Safe to call here because we are on a DispatchQueue thread.
                     _ = try buffer.withUnsafeBufferPointer { ptr in
                         try self.audio.render(ptr.baseAddress!, frameCount: framesRead)
                     }
-                    
+
                 } catch let error as CoreError {
                     self.logger.error("Playback error: \(error)")
                     self.lock.withLock {
@@ -293,11 +348,9 @@ public final class DefaultPlaybackService: PlaybackService {
                         self._state = .error(error)
                         self.isPlaybackLoopRunning = false
                     }
-                    
-                    // ✅ FIXED: Add delay to prevent busy loop on repeated errors
-                    try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
+                    Thread.sleep(forTimeInterval: 0.01)
                     break
-                    
+
                 } catch {
                     let coreError = CoreError.decodeError("Unexpected error: \(error)")
                     self.logger.error("Playback error: \(coreError)")
@@ -306,9 +359,7 @@ public final class DefaultPlaybackService: PlaybackService {
                         self._state = .error(coreError)
                         self.isPlaybackLoopRunning = false
                     }
-                    
-                    // ✅ FIXED: Add delay to prevent busy loop on repeated errors
-                    try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
+                    Thread.sleep(forTimeInterval: 0.01)
                     break
                 }
             }

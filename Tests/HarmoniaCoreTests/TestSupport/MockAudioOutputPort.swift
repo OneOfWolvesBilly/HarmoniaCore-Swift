@@ -64,6 +64,10 @@ public final class MockAudioOutputPort: AudioOutputPort {
     public func stop() {
         stopCalled = true
     }
+
+    public func flush() {
+        // No-op in mock
+    }
     
     public func render(_ interleavedFloat32: UnsafePointer<Float>, frameCount: Int) throws -> Int {
         renderCalled = true

@@ -52,4 +52,11 @@ public protocol AudioOutputPort: AnyObject {
     /// - Returns: Number of frames actually consumed (may be less than frameCount)
     /// - Throws: `CoreError.invalidState` if output is not started
     func render(_ interleavedFloat32: UnsafePointer<Float>, frameCount: Int) throws -> Int
+
+    /// Flushes all queued audio buffers without stopping the engine.
+    ///
+    /// Stops and immediately restarts the player node to clear any
+    /// in-flight buffers. Use before seeking to prevent old audio
+    /// from playing after the decoder has moved to a new position.
+    func flush()
 }

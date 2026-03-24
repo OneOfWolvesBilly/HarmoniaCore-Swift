@@ -26,7 +26,11 @@ public final class DefaultPlaybackService: PlaybackService {
     private var playbackStartTime: UInt64 = 0
     private var lastKnownPosition: Double = 0
     private var framesPerBuffer: Int = 4096
-    
+
+    /// Remembered volume level so it can be re-applied after `audio.configure()`
+    /// reconnects the AVAudioEngine node graph on each `load()` call.
+    private var currentVolume: Float = 1.0
+
     private let lock = NSLock()
     private var isPlaybackLoopRunning = false
     
@@ -73,6 +77,10 @@ public final class DefaultPlaybackService: PlaybackService {
                     framesPerBuffer: framesPerBuffer
                 )
                 self.framesPerBuffer = framesPerBuffer
+
+                // Re-apply volume: audio.configure() reconnects the AVAudioEngine
+                // node graph, which may reset mainMixerNode.outputVolume to 1.0.
+                audio.setVolume(currentVolume)
                 
                 // Update state
                 currentHandle = handle
@@ -217,6 +225,12 @@ public final class DefaultPlaybackService: PlaybackService {
         lock.withLock {
             return streamInfo?.duration ?? 0.0
         }
+    }
+
+    public func setVolume(_ volume: Float) {
+        let clamped = max(0.0, min(1.0, volume))
+        currentVolume = clamped
+        audio.setVolume(clamped)
     }
     
     // MARK: - Private Helpers

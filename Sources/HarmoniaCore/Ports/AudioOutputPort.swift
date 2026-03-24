@@ -59,4 +59,10 @@ public protocol AudioOutputPort: AnyObject {
     /// in-flight buffers. Use before seeking to prevent old audio
     /// from playing after the decoder has moved to a new position.
     func flush()
+
+    /// Sets the output volume.
+    ///
+    /// - Parameter volume: Target volume in the range 0.0 (silent) to 1.0 (full).
+    ///   Values outside this range are clamped by implementations.
+    func setVolume(_ volume: Float)
 }

@@ -24,6 +24,12 @@ public final class MockAudioOutputPort: AudioOutputPort {
     public var lastConfiguredFramesPerBuffer: Int?
     public var renderCallCount = 0
     public var totalFramesRendered = 0
+
+    /// Number of times `setVolume(_:)` was called.
+    public var setVolumeCallCount = 0
+
+    /// Last volume value passed to `setVolume(_:)`. Defaults to 1.0 (no call yet).
+    public var lastSetVolume: Float = 1.0
     
     // MARK: - Captured Data
     
@@ -68,6 +74,11 @@ public final class MockAudioOutputPort: AudioOutputPort {
     public func flush() {
         // No-op in mock
     }
+
+    public func setVolume(_ volume: Float) {
+        setVolumeCallCount += 1
+        lastSetVolume = volume
+    }
     
     public func render(_ interleavedFloat32: UnsafePointer<Float>, frameCount: Int) throws -> Int {
         renderCalled = true
@@ -104,5 +115,7 @@ public final class MockAudioOutputPort: AudioOutputPort {
         lastConfiguredSampleRate = nil
         lastConfiguredChannels = nil
         lastConfiguredFramesPerBuffer = nil
+        setVolumeCallCount = 0
+        lastSetVolume = 1.0
     }
 }

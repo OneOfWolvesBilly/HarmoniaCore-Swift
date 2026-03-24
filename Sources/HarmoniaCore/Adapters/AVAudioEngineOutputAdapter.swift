@@ -222,4 +222,8 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
 
         return framesToCopy
     }
+
+    public func setVolume(_ volume: Float) {
+        engine.mainMixerNode.outputVolume = max(0.0, min(1.0, volume))
+    }
 }

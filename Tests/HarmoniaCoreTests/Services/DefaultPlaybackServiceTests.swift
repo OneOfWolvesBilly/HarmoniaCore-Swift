@@ -64,6 +64,9 @@ final class DefaultPlaybackServiceTests: XCTestCase {
         XCTAssertEqual(mockDecoder.lastOpenedURL, testURL)
         XCTAssertTrue(mockAudio.configureCalled)
         XCTAssertEqual(service.duration(), 10.0)
+        // load() must re-apply current volume after configure()
+        XCTAssertEqual(mockAudio.setVolumeCallCount, 1)
+        XCTAssertEqual(mockAudio.lastSetVolume, 1.0, accuracy: Float(0.001))
     }
     
     func testLoadFailure_FileNotFound() {
@@ -230,6 +233,46 @@ final class DefaultPlaybackServiceTests: XCTestCase {
         XCTAssertEqual(currentTime, 5.0, accuracy: 0.1)
     }
     
+    // MARK: - Volume Tests
+
+    func testSetVolume_ForwardsToAudioOutput() throws {
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        mockAudio.reset()
+
+        service.setVolume(0.5)
+
+        XCTAssertEqual(mockAudio.setVolumeCallCount, 1)
+        XCTAssertEqual(mockAudio.lastSetVolume, 0.5, accuracy: Float(0.001))
+    }
+
+    func testSetVolume_Clamps_AboveOne() throws {
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        mockAudio.reset()
+
+        service.setVolume(1.5)
+
+        XCTAssertEqual(mockAudio.lastSetVolume, 1.0, accuracy: Float(0.001))
+    }
+
+    func testSetVolume_Clamps_BelowZero() throws {
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        mockAudio.reset()
+
+        service.setVolume(-0.1)
+
+        XCTAssertEqual(mockAudio.lastSetVolume, 0.0, accuracy: Float(0.001))
+    }
+
+    func testLoad_ReappliesCurrentVolume() throws {
+        service.setVolume(0.3)
+        mockAudio.reset()
+
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+
+        XCTAssertEqual(mockAudio.setVolumeCallCount, 1)
+        XCTAssertEqual(mockAudio.lastSetVolume, 0.3, accuracy: Float(0.001))
+    }
+
     // MARK: - Error Recovery Tests
     
     func testLoadAfterError() throws {

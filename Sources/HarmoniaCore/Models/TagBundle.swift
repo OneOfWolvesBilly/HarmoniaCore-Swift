@@ -22,9 +22,9 @@ public struct TagBundle: Sendable, Equatable {
     public var discNumber: Int?
     public var discTotal: Int?
     public var bpm: Int?
-    public var comment: String?
     public var replayGainTrack: Double?
     public var replayGainAlbum: Double?
+    public var comment: String?
     public var artworkData: Data?
 
     public init(
@@ -40,9 +40,9 @@ public struct TagBundle: Sendable, Equatable {
         discNumber: Int? = nil,
         discTotal: Int? = nil,
         bpm: Int? = nil,
-        comment: String? = nil,
         replayGainTrack: Double? = nil,
         replayGainAlbum: Double? = nil,
+        comment: String? = nil,
         artworkData: Data? = nil
     ) {
         self.title = title
@@ -57,9 +57,9 @@ public struct TagBundle: Sendable, Equatable {
         self.discNumber = discNumber
         self.discTotal = discTotal
         self.bpm = bpm
-        self.comment = comment
         self.replayGainTrack = replayGainTrack
         self.replayGainAlbum = replayGainAlbum
+        self.comment = comment
         self.artworkData = artworkData
     }
 }
@@ -81,9 +81,9 @@ extension TagBundle {
                discNumber == nil &&
                discTotal == nil &&
                bpm == nil &&
-               comment == nil &&
                replayGainTrack == nil &&
                replayGainAlbum == nil &&
+               comment == nil &&
                artworkData == nil
     }
 }

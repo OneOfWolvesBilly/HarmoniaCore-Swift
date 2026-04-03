@@ -21,10 +21,17 @@ final class TagBundleTests: XCTestCase {
         XCTAssertNil(tags.artist)
         XCTAssertNil(tags.album)
         XCTAssertNil(tags.albumArtist)
+        XCTAssertNil(tags.composer)
         XCTAssertNil(tags.genre)
         XCTAssertNil(tags.year)
         XCTAssertNil(tags.trackNumber)
+        XCTAssertNil(tags.trackTotal)
         XCTAssertNil(tags.discNumber)
+        XCTAssertNil(tags.discTotal)
+        XCTAssertNil(tags.bpm)
+        XCTAssertNil(tags.replayGainTrack)
+        XCTAssertNil(tags.replayGainAlbum)
+        XCTAssertNil(tags.comment)
         XCTAssertNil(tags.artworkData)
     }
     
@@ -66,6 +73,30 @@ final class TagBundleTests: XCTestCase {
     func testIsEmpty_WithYear() {
         var tags = TagBundle()
         tags.year = 2025
+        XCTAssertFalse(tags.isEmpty)
+    }
+
+    func testIsEmpty_WithComposer() {
+        var tags = TagBundle()
+        tags.composer = "John Williams"
+        XCTAssertFalse(tags.isEmpty)
+    }
+
+    func testIsEmpty_WithBpm() {
+        var tags = TagBundle()
+        tags.bpm = 120
+        XCTAssertFalse(tags.isEmpty)
+    }
+
+    func testIsEmpty_WithComment() {
+        var tags = TagBundle()
+        tags.comment = "A note"
+        XCTAssertFalse(tags.isEmpty)
+    }
+
+    func testIsEmpty_WithReplayGainTrack() {
+        var tags = TagBundle()
+        tags.replayGainTrack = -3.21
         XCTAssertFalse(tags.isEmpty)
     }
     
@@ -121,75 +152,82 @@ final class TagBundleTests: XCTestCase {
         XCTAssertFalse(tags.isEmpty)
         XCTAssertEqual(tags.artworkData, mockArtwork)
     }
-    
-    // MARK: - New fields (Slice 7-H)
-    
-    func testTagBundle_Composer_StoresString() {
+
+    // MARK: - New field tests (composer, trackTotal, discTotal, bpm, replayGain, comment)
+
+    func testComposer_StoresString() {
         var tags = TagBundle()
-        tags.composer = "Freddie Mercury"
-        XCTAssertEqual(tags.composer, "Freddie Mercury")
-        XCTAssertFalse(tags.isEmpty)
+        tags.composer = "John Williams"
+        XCTAssertEqual(tags.composer, "John Williams")
     }
-    
-    func testTagBundle_TrackTotal_StoresPositiveInt() {
+
+    func testTrackTotal_StoresPositiveInt() {
         var tags = TagBundle()
         tags.trackTotal = 12
         XCTAssertEqual(tags.trackTotal, 12)
-        XCTAssertFalse(tags.isEmpty)
     }
-    
-    func testTagBundle_DiscTotal_StoresPositiveInt() {
+
+    func testDiscTotal_StoresPositiveInt() {
         var tags = TagBundle()
         tags.discTotal = 2
         XCTAssertEqual(tags.discTotal, 2)
-        XCTAssertFalse(tags.isEmpty)
     }
-    
-    func testTagBundle_BPM_StoresPositiveInt() {
+
+    func testBpm_StoresPositiveInt() {
         var tags = TagBundle()
         tags.bpm = 128
         XCTAssertEqual(tags.bpm, 128)
-        XCTAssertFalse(tags.isEmpty)
     }
-    
-    func testTagBundle_Comment_StoresString() {
+
+    func testReplayGainTrack_StoresDouble() {
         var tags = TagBundle()
-        tags.comment = "Live version"
-        XCTAssertEqual(tags.comment, "Live version")
-        XCTAssertFalse(tags.isEmpty)
+        tags.replayGainTrack = -3.21
+        XCTAssertEqual(tags.replayGainTrack ?? 0, -3.21, accuracy: 0.001)
     }
-    
-    func testTagBundle_ReplayGainTrack_StoresDouble() throws {
+
+    func testReplayGainAlbum_StoresDouble() {
         var tags = TagBundle()
-        tags.replayGainTrack = -5.32
-        let value = try XCTUnwrap(tags.replayGainTrack)
-        XCTAssertEqual(value, -5.32, accuracy: 0.001)
-        XCTAssertFalse(tags.isEmpty)
+        tags.replayGainAlbum = 1.50
+        XCTAssertEqual(tags.replayGainAlbum ?? 0, 1.50, accuracy: 0.001)
     }
-    
-    func testTagBundle_ReplayGainAlbum_StoresDouble() throws {
+
+    func testComment_StoresString() {
         var tags = TagBundle()
-        tags.replayGainAlbum = -4.10
-        let value = try XCTUnwrap(tags.replayGainAlbum)
-        XCTAssertEqual(value, -4.10, accuracy: 0.001)
-        XCTAssertFalse(tags.isEmpty)
+        tags.comment = "Remastered 2023"
+        XCTAssertEqual(tags.comment, "Remastered 2023")
     }
-    
-    func testTagBundle_AllNewFieldsNilByDefault() {
-        let tags = TagBundle()
-        XCTAssertNil(tags.composer)
-        XCTAssertNil(tags.trackTotal)
-        XCTAssertNil(tags.discTotal)
-        XCTAssertNil(tags.bpm)
-        XCTAssertNil(tags.comment)
-        XCTAssertNil(tags.replayGainTrack)
-        XCTAssertNil(tags.replayGainAlbum)
+
+    func testInitialization_WithNewFields() {
+        let tags = TagBundle(
+            title: "Song",
+            composer: "Bach",
+            trackTotal: 10,
+            discTotal: 2,
+            bpm: 140,
+            replayGainTrack: -2.5,
+            replayGainAlbum: -1.8,
+            comment: "Live recording"
+        )
+        XCTAssertEqual(tags.composer, "Bach")
+        XCTAssertEqual(tags.trackTotal, 10)
+        XCTAssertEqual(tags.discTotal, 2)
+        XCTAssertEqual(tags.bpm, 140)
+        XCTAssertEqual(tags.replayGainTrack ?? 0, -2.5, accuracy: 0.001)
+        XCTAssertEqual(tags.replayGainAlbum ?? 0, -1.8, accuracy: 0.001)
+        XCTAssertEqual(tags.comment, "Live recording")
     }
-    
-    func testTagBundle_IsEmpty_NewFieldsIncluded() {
-        var tags = TagBundle()
-        XCTAssertTrue(tags.isEmpty)
-        tags.bpm = 120
-        XCTAssertFalse(tags.isEmpty)
+
+    func testEquatable_DifferentComposer() {
+        let tags1 = TagBundle(title: "Song", composer: "Bach")
+        let tags2 = TagBundle(title: "Song", composer: "Mozart")
+        XCTAssertNotEqual(tags1, tags2)
+    }
+
+    func testEquatable_DifferentReplayGain() {
+        var tags1 = TagBundle()
+        tags1.replayGainTrack = -3.0
+        var tags2 = TagBundle()
+        tags2.replayGainTrack = -2.0
+        XCTAssertNotEqual(tags1, tags2)
     }
 }

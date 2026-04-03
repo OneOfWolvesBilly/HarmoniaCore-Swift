@@ -94,9 +94,9 @@ final class AVMetadataTagReaderAdapterTests: XCTestCase {
         XCTAssertNil(bundle.discNumber)
         XCTAssertNil(bundle.discTotal)
         XCTAssertNil(bundle.bpm)
-        XCTAssertNil(bundle.comment)
         XCTAssertNil(bundle.replayGainTrack)
         XCTAssertNil(bundle.replayGainAlbum)
+        XCTAssertNil(bundle.comment)
         XCTAssertNil(bundle.artworkData)
         XCTAssertTrue(bundle.isEmpty)
     }
@@ -152,5 +152,84 @@ final class AVMetadataTagReaderAdapterTests: XCTestCase {
         let adapter2 = AVMetadataTagReaderAdapter()
         XCTAssertNotNil(adapter1)
         XCTAssertNotNil(adapter2)
+    }
+
+    // MARK: - New field defaults (composer, trackTotal, discTotal, bpm, replayGain, comment)
+
+    func testTagBundle_Composer_NilByDefault() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.composer)
+    }
+
+    func testTagBundle_Composer_StoresString() {
+        var bundle = TagBundle()
+        bundle.composer = "Hans Zimmer"
+        XCTAssertEqual(bundle.composer, "Hans Zimmer")
+    }
+
+    func testTagBundle_TrackTotal_NilByDefault() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.trackTotal)
+    }
+
+    func testTagBundle_TrackTotal_StoresPositiveInt() {
+        var bundle = TagBundle()
+        bundle.trackTotal = 12
+        XCTAssertEqual(bundle.trackTotal, 12)
+    }
+
+    func testTagBundle_DiscTotal_NilByDefault() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.discTotal)
+    }
+
+    func testTagBundle_DiscTotal_StoresPositiveInt() {
+        var bundle = TagBundle()
+        bundle.discTotal = 2
+        XCTAssertEqual(bundle.discTotal, 2)
+    }
+
+    func testTagBundle_Bpm_NilByDefault() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.bpm)
+    }
+
+    func testTagBundle_Bpm_StoresPositiveInt() {
+        var bundle = TagBundle()
+        bundle.bpm = 120
+        XCTAssertEqual(bundle.bpm, 120)
+    }
+
+    func testTagBundle_ReplayGainTrack_NilByDefault() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.replayGainTrack)
+    }
+
+    func testTagBundle_ReplayGainTrack_StoresDouble() {
+        var bundle = TagBundle()
+        bundle.replayGainTrack = -3.21
+        XCTAssertEqual(bundle.replayGainTrack ?? 0, -3.21, accuracy: 0.001)
+    }
+
+    func testTagBundle_ReplayGainAlbum_NilByDefault() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.replayGainAlbum)
+    }
+
+    func testTagBundle_ReplayGainAlbum_StoresDouble() {
+        var bundle = TagBundle()
+        bundle.replayGainAlbum = 1.50
+        XCTAssertEqual(bundle.replayGainAlbum ?? 0, 1.50, accuracy: 0.001)
+    }
+
+    func testTagBundle_Comment_NilByDefault() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.comment)
+    }
+
+    func testTagBundle_Comment_StoresString() {
+        var bundle = TagBundle()
+        bundle.comment = "Live at Carnegie Hall"
+        XCTAssertEqual(bundle.comment, "Live at Carnegie Hall")
     }
 }

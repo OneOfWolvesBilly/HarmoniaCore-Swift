@@ -14,6 +14,115 @@ import Foundation
 public final class AVMutableTagWriterAdapter: TagWriterPort {
     public init() {}
 
+    /// Builds AVMutableMetadataItem array from TagBundle.
+    /// Internal for testing. Called by write() internally.
+    /// replayGainTrack and replayGainAlbum are intentionally excluded.
+    func buildMetadataItems(from tags: TagBundle) -> [AVMutableMetadataItem] {
+        var items: [AVMutableMetadataItem] = []
+
+        if let title = tags.title {
+            let item = AVMutableMetadataItem()
+            item.identifier = .commonIdentifierTitle
+            item.value = title as NSString
+            items.append(item)
+        }
+
+        if let artist = tags.artist {
+            let item = AVMutableMetadataItem()
+            item.identifier = .commonIdentifierArtist
+            item.value = artist as NSString
+            items.append(item)
+        }
+
+        if let album = tags.album {
+            let item = AVMutableMetadataItem()
+            item.identifier = .commonIdentifierAlbumName
+            item.value = album as NSString
+            items.append(item)
+        }
+
+        if let albumArtist = tags.albumArtist {
+            let item = AVMutableMetadataItem()
+            item.identifier = .id3MetadataBand                  // TPE2
+            item.value = albumArtist as NSString
+            items.append(item)
+        }
+
+        if let composer = tags.composer {
+            let item = AVMutableMetadataItem()
+            item.identifier = .id3MetadataComposer              // TCOM
+            item.value = composer as NSString
+            items.append(item)
+        }
+
+        if let genre = tags.genre {
+            let item = AVMutableMetadataItem()
+            item.identifier = .id3MetadataContentType           // TCON
+            item.value = genre as NSString
+            items.append(item)
+        }
+
+        if let year = tags.year {
+            let item = AVMutableMetadataItem()
+            item.identifier = .id3MetadataRecordingTime         // TDRC
+            item.value = "\(year)" as NSString
+            items.append(item)
+        }
+
+        if let trackNumber = tags.trackNumber {
+            let item = AVMutableMetadataItem()
+            item.identifier = .id3MetadataTrackNumber           // TRCK
+            let value: String
+            if let trackTotal = tags.trackTotal {
+                value = "\(trackNumber)/\(trackTotal)"
+            } else {
+                value = "\(trackNumber)"
+            }
+            item.value = value as NSString
+            items.append(item)
+        }
+
+        if let discNumber = tags.discNumber {
+            let item = AVMutableMetadataItem()
+            item.identifier = .id3MetadataPartOfASet            // TPOS
+            let value: String
+            if let discTotal = tags.discTotal {
+                value = "\(discNumber)/\(discTotal)"
+            } else {
+                value = "\(discNumber)"
+            }
+            item.value = value as NSString
+            items.append(item)
+        }
+
+        if let bpm = tags.bpm {
+            let item = AVMutableMetadataItem()
+            item.identifier = .id3MetadataBeatsPerMinute        // TBPM
+            item.value = "\(bpm)" as NSString
+            items.append(item)
+        }
+
+        if let comment = tags.comment {
+            let item = AVMutableMetadataItem()
+            item.identifier = .id3MetadataComments              // COMM
+            item.value = comment as NSString
+            items.append(item)
+        }
+
+        if let artworkData = tags.artworkData {
+            let item = AVMutableMetadataItem()
+            item.identifier = .commonIdentifierArtwork
+            item.value = artworkData as NSData
+            items.append(item)
+        }
+
+        // replayGainTrack and replayGainAlbum are intentionally excluded.
+        // AVFoundation cannot write TXXX frames.
+        // Writing support deferred to future TagLib-based adapter.
+
+        return items
+    }
+
     public func write(url: URL, tags: TagBundle) throws {
         #if os(iOS)
         // iOS sandbox restrictions prevent file writes in most cases
@@ -22,6 +131,16 @@ public final class AVMutableTagWriterAdapter: TagWriterPort {
             "Use TagLibTagWriterAdapter on macOS if needed."
         )
         #else
+        // Check for unsupported formats before any file I/O.
+        // AVFoundation export does not support FLAC, DSF, or DFF.
+        let ext = url.pathExtension.lowercased()
+        if ["flac", "dsf", "dff"].contains(ext) {
+            throw CoreError.unsupported(
+                "Tag writing is not supported for .\(ext) format. " +
+                "Use TagLibTagWriterAdapter for FLAC/DSF/DFF support."
+            )
+        }
+
         // macOS implementation
         
         // Load the asset
@@ -55,36 +174,8 @@ public final class AVMutableTagWriterAdapter: TagWriterPort {
         }
         
         // Build metadata items from TagBundle
-        var metadataItems: [AVMetadataItem] = []
-        
-        if let title = tags.title {
-            let item = AVMutableMetadataItem()
-            item.identifier = .commonIdentifierTitle
-            item.value = title as NSString
-            metadataItems.append(item)
-        }
-        
-        if let artist = tags.artist {
-            let item = AVMutableMetadataItem()
-            item.identifier = .commonIdentifierArtist
-            item.value = artist as NSString
-            metadataItems.append(item)
-        }
-        
-        if let album = tags.album {
-            let item = AVMutableMetadataItem()
-            item.identifier = .commonIdentifierAlbumName
-            item.value = album as NSString
-            metadataItems.append(item)
-        }
-        
-        if let artworkData = tags.artworkData {
-            let item = AVMutableMetadataItem()
-            item.identifier = .commonIdentifierArtwork
-            item.value = artworkData as NSData
-            metadataItems.append(item)
-        }
-        
+        let metadataItems = buildMetadataItems(from: tags)
+
         // Set metadata
         exportSession.metadata = metadataItems
         

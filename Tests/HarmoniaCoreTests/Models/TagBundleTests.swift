@@ -33,6 +33,11 @@ final class TagBundleTests: XCTestCase {
         XCTAssertNil(tags.replayGainAlbum)
         XCTAssertNil(tags.comment)
         XCTAssertNil(tags.artworkData)
+        XCTAssertNil(tags.duration)
+        XCTAssertNil(tags.bitrate)
+        XCTAssertNil(tags.sampleRate)
+        XCTAssertNil(tags.channels)
+        XCTAssertNil(tags.fileSize)
     }
     
     func testInitialization_WithParameters() {
@@ -99,6 +104,56 @@ final class TagBundleTests: XCTestCase {
         tags.replayGainTrack = -3.21
         XCTAssertFalse(tags.isEmpty)
     }
+
+    /// Technical info fields do NOT affect isEmpty — they are stream properties,
+    /// not user-facing tag metadata.
+    func testIsEmpty_WithOnlyDuration_StillEmpty() {
+        var tags = TagBundle()
+        tags.duration = 180.0
+        XCTAssertTrue(tags.isEmpty, "duration is technical info, not a tag — isEmpty should remain true")
+    }
+
+    func testIsEmpty_WithOnlyBitrate_StillEmpty() {
+        var tags = TagBundle()
+        tags.bitrate = 320
+        XCTAssertTrue(tags.isEmpty, "bitrate is technical info, not a tag — isEmpty should remain true")
+    }
+
+    func testIsEmpty_WithOnlySampleRate_StillEmpty() {
+        var tags = TagBundle()
+        tags.sampleRate = 44100.0
+        XCTAssertTrue(tags.isEmpty, "sampleRate is technical info, not a tag — isEmpty should remain true")
+    }
+
+    func testIsEmpty_WithOnlyChannels_StillEmpty() {
+        var tags = TagBundle()
+        tags.channels = 2
+        XCTAssertTrue(tags.isEmpty, "channels is technical info, not a tag — isEmpty should remain true")
+    }
+
+    func testIsEmpty_WithOnlyFileSize_StillEmpty() {
+        var tags = TagBundle()
+        tags.fileSize = 5_000_000
+        XCTAssertTrue(tags.isEmpty, "fileSize is technical info, not a tag — isEmpty should remain true")
+    }
+
+    func testIsEmpty_WithAllTechnicalInfoOnly_StillEmpty() {
+        var tags = TagBundle()
+        tags.duration = 240.5
+        tags.bitrate = 256
+        tags.sampleRate = 48000.0
+        tags.channels = 2
+        tags.fileSize = 8_000_000
+        XCTAssertTrue(tags.isEmpty, "only technical info set — isEmpty should remain true")
+    }
+
+    func testIsEmpty_WithTitleAndTechnicalInfo_NotEmpty() {
+        var tags = TagBundle()
+        tags.title = "Song"
+        tags.duration = 180.0
+        tags.bitrate = 320
+        XCTAssertFalse(tags.isEmpty, "title is a tag — isEmpty should be false")
+    }
     
     // MARK: - Equatable Tests
     
@@ -121,6 +176,42 @@ final class TagBundleTests: XCTestCase {
         let tags2 = TagBundle(title: "Song")
         
         XCTAssertNotEqual(tags1, tags2)
+    }
+
+    func testEquatable_DifferentDuration() {
+        let tags1 = TagBundle(title: "Song", duration: 180.0)
+        let tags2 = TagBundle(title: "Song", duration: 200.0)
+        XCTAssertNotEqual(tags1, tags2)
+    }
+
+    func testEquatable_DifferentBitrate() {
+        let tags1 = TagBundle(title: "Song", bitrate: 320)
+        let tags2 = TagBundle(title: "Song", bitrate: 256)
+        XCTAssertNotEqual(tags1, tags2)
+    }
+
+    func testEquatable_DifferentSampleRate() {
+        let tags1 = TagBundle(title: "Song", sampleRate: 44100.0)
+        let tags2 = TagBundle(title: "Song", sampleRate: 48000.0)
+        XCTAssertNotEqual(tags1, tags2)
+    }
+
+    func testEquatable_DifferentChannels() {
+        let tags1 = TagBundle(title: "Song", channels: 1)
+        let tags2 = TagBundle(title: "Song", channels: 2)
+        XCTAssertNotEqual(tags1, tags2)
+    }
+
+    func testEquatable_DifferentFileSize() {
+        let tags1 = TagBundle(title: "Song", fileSize: 1_000_000)
+        let tags2 = TagBundle(title: "Song", fileSize: 2_000_000)
+        XCTAssertNotEqual(tags1, tags2)
+    }
+
+    func testEquatable_SameTechnicalInfo() {
+        let tags1 = TagBundle(duration: 180.0, bitrate: 320, sampleRate: 44100.0, channels: 2, fileSize: 5_000_000)
+        let tags2 = TagBundle(duration: 180.0, bitrate: 320, sampleRate: 44100.0, channels: 2, fileSize: 5_000_000)
+        XCTAssertEqual(tags1, tags2)
     }
     
     // MARK: - Typical Usage Tests
@@ -229,5 +320,99 @@ final class TagBundleTests: XCTestCase {
         var tags2 = TagBundle()
         tags2.replayGainTrack = -2.0
         XCTAssertNotEqual(tags1, tags2)
+    }
+
+    // MARK: - Technical Info Field Tests
+
+    func testDuration_StoresTimeInterval() {
+        var tags = TagBundle()
+        tags.duration = 245.7
+        XCTAssertEqual(tags.duration ?? 0, 245.7, accuracy: 0.001)
+    }
+
+    func testBitrate_StoresKbps() {
+        var tags = TagBundle()
+        tags.bitrate = 320
+        XCTAssertEqual(tags.bitrate, 320)
+    }
+
+    func testSampleRate_StoresHz() {
+        var tags = TagBundle()
+        tags.sampleRate = 44100.0
+        XCTAssertEqual(tags.sampleRate ?? 0, 44100.0, accuracy: 0.001)
+    }
+
+    func testChannels_StoresInt() {
+        var tags = TagBundle()
+        tags.channels = 2
+        XCTAssertEqual(tags.channels, 2)
+    }
+
+    func testFileSize_StoresBytes() {
+        var tags = TagBundle()
+        tags.fileSize = 8_543_210
+        XCTAssertEqual(tags.fileSize, 8_543_210)
+    }
+
+    func testInitialization_WithTechnicalInfoFields() {
+        let tags = TagBundle(
+            title: "Song",
+            duration: 180.5,
+            bitrate: 256,
+            sampleRate: 48000.0,
+            channels: 2,
+            fileSize: 5_500_000
+        )
+        XCTAssertEqual(tags.title, "Song")
+        XCTAssertEqual(tags.duration ?? 0, 180.5, accuracy: 0.001)
+        XCTAssertEqual(tags.bitrate, 256)
+        XCTAssertEqual(tags.sampleRate ?? 0, 48000.0, accuracy: 0.001)
+        XCTAssertEqual(tags.channels, 2)
+        XCTAssertEqual(tags.fileSize, 5_500_000)
+    }
+
+    func testInitialization_WithAllFields() {
+        let tags = TagBundle(
+            title: "Full Song",
+            artist: "Artist",
+            album: "Album",
+            albumArtist: "AlbumArtist",
+            composer: "Composer",
+            genre: "Rock",
+            year: 2024,
+            trackNumber: 3,
+            trackTotal: 12,
+            discNumber: 1,
+            discTotal: 2,
+            bpm: 120,
+            replayGainTrack: -3.5,
+            replayGainAlbum: -1.2,
+            comment: "Note",
+            artworkData: Data([0x89, 0x50]),
+            duration: 300.0,
+            bitrate: 320,
+            sampleRate: 44100.0,
+            channels: 2,
+            fileSize: 12_000_000
+        )
+        XCTAssertEqual(tags.title, "Full Song")
+        XCTAssertEqual(tags.duration ?? 0, 300.0, accuracy: 0.001)
+        XCTAssertEqual(tags.bitrate, 320)
+        XCTAssertEqual(tags.sampleRate ?? 0, 44100.0, accuracy: 0.001)
+        XCTAssertEqual(tags.channels, 2)
+        XCTAssertEqual(tags.fileSize, 12_000_000)
+        XCTAssertFalse(tags.isEmpty)
+    }
+
+    // MARK: - Schema Version Tests
+
+    func testCurrentSchemaVersion_IsPositive() {
+        XCTAssertGreaterThan(TagBundle.currentSchemaVersion, 0,
+                             "currentSchemaVersion must be > 0")
+    }
+
+    func testCurrentSchemaVersion_EqualsOne() {
+        XCTAssertEqual(TagBundle.currentSchemaVersion, 1,
+                       "currentSchemaVersion should be 1 after adding technical info fields")
     }
 }

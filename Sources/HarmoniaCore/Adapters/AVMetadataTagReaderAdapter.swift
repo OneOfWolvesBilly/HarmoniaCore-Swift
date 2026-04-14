@@ -19,6 +19,11 @@
 //     Required for: albumArtist, genre, year, trackNumber, discNumber.
 //     commonMetadata does not expose these fields reliably.
 //
+//  After tag extraction, a fourth step reads technical audio info
+//  (duration, bitrate, sampleRate, channels, fileSize) from the same
+//  AVURLAsset. These are NOT tag metadata but are included in TagBundle
+//  so that consumers do not need to open the asset a second time.
+//
 //  See specs/02_01_apple.adapters.md for the full field→identifier table.
 
 import Foundation
@@ -165,6 +170,64 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
         let (rgTrack, rgAlbum) = readReplayGain(from: allItems)
         bundle.replayGainTrack = rgTrack
         bundle.replayGainAlbum = rgAlbum
+
+        // ── Step 4: Technical info (duration, bitrate, sampleRate, channels, fileSize) ──
+        //
+        // These are read from the same AVURLAsset that is already open for
+        // tag extraction. Including them in TagBundle avoids a second asset
+        // load in the consumer layer.
+        // Non-fatal: any failure leaves the corresponding field nil.
+
+        nonisolated(unsafe) var durationSeconds: TimeInterval?
+        nonisolated(unsafe) var bitrateKbps: Int?
+        nonisolated(unsafe) var sampleRateHz: Double?
+        nonisolated(unsafe) var channelCount: Int?
+
+        let sema4 = DispatchSemaphore(value: 0)
+        Task { @Sendable in
+            // Duration
+            if let cmDuration = try? await asset.load(.duration) {
+                let s = cmDuration.seconds
+                if s > 0 && !s.isNaN && !s.isInfinite {
+                    durationSeconds = s
+                }
+            }
+
+            // Audio track properties: bitrate, sampleRate, channels
+            if let assetTracks = try? await asset.load(.tracks),
+               let firstAudio = assetTracks.first(where: { $0.mediaType == .audio }) {
+
+                if let rate = try? await firstAudio.load(.estimatedDataRate), rate > 0 {
+                    let kbps = Int(rate / 1000)
+                    if kbps > 0 { bitrateKbps = kbps }
+                }
+
+                if let formatDescriptions = try? await firstAudio.load(.formatDescriptions),
+                   let firstDesc = formatDescriptions.first {
+                    let desc = firstDesc as CMFormatDescription
+                    if let basic = CMAudioFormatDescriptionGetStreamBasicDescription(desc) {
+                        let sr = basic.pointee.mSampleRate
+                        if sr > 0 { sampleRateHz = sr }
+                        let ch = Int(basic.pointee.mChannelsPerFrame)
+                        if ch > 0 { channelCount = ch }
+                    }
+                }
+            }
+
+            sema4.signal()
+        }
+        sema4.wait()
+
+        bundle.duration = durationSeconds
+        bundle.bitrate = bitrateKbps
+        bundle.sampleRate = sampleRateHz
+        bundle.channels = channelCount
+
+        // fileSize: synchronous FileManager call, no async needed.
+        if url.isFileURL {
+            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+            bundle.fileSize = attrs?[.size] as? Int
+        }
 
         return bundle
     }

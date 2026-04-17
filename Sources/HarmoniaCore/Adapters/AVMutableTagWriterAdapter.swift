@@ -223,18 +223,46 @@ public final class AVMutableTagWriterAdapter: TagWriterPort {
             ))
         }
         
-        // Replace original file with temp file
+        // Replace original file with temp file, preserving the original
+        // file's extended attributes, creation date, permissions, ACL, and
+        // ownership. See replaceFile(at:withTempFileAt:) for details.
         do {
-            // Remove original
-            try FileManager.default.removeItem(at: url)
-            
-            // Move temp to original location
-            try FileManager.default.moveItem(at: tempURL, to: url)
+            try replaceFile(at: url, withTempFileAt: tempURL)
         } catch {
             // Clean up temp file
             try? FileManager.default.removeItem(at: tempURL)
             throw CoreError.ioError(underlying: error)
         }
         #endif
+    }
+
+    /// Replaces the file at `originalURL` with the file at `tempURL`,
+    /// preserving the original file's extended attributes (xattr), creation
+    /// date, permissions, ACL, and ownership.
+    ///
+    /// Uses `FileManager.replaceItem(at:withItemAt:backupItemName:options:resultingItemURL:)`
+    /// which performs an atomic rename on same-volume replacements and
+    /// explicitly transfers the original file's metadata onto the replacement.
+    /// This fixes the pre-9-B bug where `removeItem` + `moveItem` silently
+    /// dropped `kMDItemWhereFroms` and reset the creation date to "now".
+    ///
+    /// Internal visibility is intentional — exposed for unit testing without
+    /// requiring a real audio fixture or an AVFoundation export session.
+    ///
+    /// - Parameters:
+    ///   - originalURL: The file to be replaced in place.
+    ///   - tempURL: The freshly written replacement file. This URL is
+    ///     consumed by the operation; callers should not use it after a
+    ///     successful return.
+    /// - Throws: Errors from `FileManager.replaceItem` if the replacement fails.
+    func replaceFile(at originalURL: URL, withTempFileAt tempURL: URL) throws {
+        var resultingURL: NSURL?
+        try FileManager.default.replaceItem(
+            at: originalURL,
+            withItemAt: tempURL,
+            backupItemName: nil,
+            options: [],
+            resultingItemURL: &resultingURL
+        )
     }
 }

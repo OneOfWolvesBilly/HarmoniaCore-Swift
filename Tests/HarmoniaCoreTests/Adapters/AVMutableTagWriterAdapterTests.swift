@@ -233,6 +233,99 @@ final class AVMutableTagWriterAdapterTests: XCTestCase {
         XCTAssertNotNil(adapter2)
     }
 
+    // MARK: - File replacement preserves attributes (Slice 9-B)
+    //
+    // write() uses an internal helper replaceFile(at:withTempFileAt:) to swap
+    // the export session's temp output onto the original URL. The helper must
+    // preserve the original file's extended attributes, creation date, and
+    // other POSIX/ACL metadata — this is the fix for the pre-9-B bug where
+    // removeItem + moveItem silently dropped xattr (including
+    // kMDItemWhereFroms) and reset the creation date to "now".
+    //
+    // These tests exercise the helper directly with plain binary files so
+    // that no real audio fixture or AVFoundation export is required.
+
+    #if os(macOS)
+
+    func testReplaceFile_PreservesXattr() throws {
+        // Given: original file with a kMDItemWhereFroms-style xattr, and a
+        // temp file that will replace it.
+        let tempDir = FileManager.default.temporaryDirectory
+        let originalURL = tempDir.appendingPathComponent("hc-orig-\(UUID().uuidString).bin")
+        let tempURL = tempDir.appendingPathComponent("hc-temp-\(UUID().uuidString).bin")
+
+        defer {
+            try? FileManager.default.removeItem(at: originalURL)
+            try? FileManager.default.removeItem(at: tempURL)
+        }
+
+        try Data([0x01, 0x02, 0x03]).write(to: originalURL)
+        try Data([0x04, 0x05, 0x06]).write(to: tempURL)
+
+        let key = "com.apple.metadata:kMDItemWhereFroms"
+        let xattrPayload = Data([0xAA, 0xBB, 0xCC])
+        let setResult = xattrPayload.withUnsafeBytes { bytes in
+            setxattr(originalURL.path, key, bytes.baseAddress, xattrPayload.count, 0, 0)
+        }
+        XCTAssertEqual(setResult, 0,
+                       "setxattr preparation failed with errno \(errno)")
+
+        // When: replacing the original file using the helper under test.
+        try sut.replaceFile(at: originalURL, withTempFileAt: tempURL)
+
+        // Then: the xattr must still be present on the replaced file.
+        let size = getxattr(originalURL.path, key, nil, 0, 0, 0)
+        XCTAssertGreaterThan(size, 0,
+                             "xattr must be preserved after file replacement")
+
+        var buffer = [UInt8](repeating: 0, count: size)
+        let readSize = getxattr(originalURL.path, key, &buffer, size, 0, 0)
+        XCTAssertEqual(readSize, size)
+        XCTAssertEqual(Array(xattrPayload), buffer,
+                       "xattr payload must match the original value")
+    }
+
+    func testReplaceFile_PreservesCreationDate() throws {
+        // Given: original file whose creation date has been explicitly set
+        // to a past date, and a fresh temp file whose creation date is
+        // naturally "now".
+        let tempDir = FileManager.default.temporaryDirectory
+        let originalURL = tempDir.appendingPathComponent("hc-orig-\(UUID().uuidString).bin")
+        let tempURL = tempDir.appendingPathComponent("hc-temp-\(UUID().uuidString).bin")
+
+        defer {
+            try? FileManager.default.removeItem(at: originalURL)
+            try? FileManager.default.removeItem(at: tempURL)
+        }
+
+        try Data([0x01]).write(to: originalURL)
+        try Data([0x02]).write(to: tempURL)
+
+        // 2020-01-01 00:00:00 UTC — clearly in the past so "now" vs expected
+        // cannot collide within the XCTAssertEqual accuracy window.
+        let expected = Date(timeIntervalSince1970: 1_577_836_800)
+        try FileManager.default.setAttributes(
+            [.creationDate: expected],
+            ofItemAtPath: originalURL.path
+        )
+
+        // When
+        try sut.replaceFile(at: originalURL, withTempFileAt: tempURL)
+
+        // Then: the creation date must match the original file's, not "now"
+        // (which would be the result of the pre-9-B removeItem + moveItem).
+        let attrs = try FileManager.default.attributesOfItem(atPath: originalURL.path)
+        let actual = attrs[.creationDate] as? Date
+        XCTAssertNotNil(actual,
+                        "creation date must be readable after replacement")
+        XCTAssertEqual(actual?.timeIntervalSince1970 ?? 0,
+                       expected.timeIntervalSince1970,
+                       accuracy: 1.0,
+                       "creation date must be preserved, not reset to 'now'")
+    }
+
+    #endif
+
     // MARK: - iOS platform
 
     #if os(iOS)

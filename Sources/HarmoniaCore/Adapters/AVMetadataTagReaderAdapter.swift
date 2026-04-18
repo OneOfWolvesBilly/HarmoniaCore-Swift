@@ -20,9 +20,10 @@
 //     commonMetadata does not expose these fields reliably.
 //
 //  After tag extraction, a fourth step reads technical audio info
-//  (duration, bitrate, sampleRate, channels, fileSize) from the same
-//  AVURLAsset. These are NOT tag metadata but are included in TagBundle
-//  so that consumers do not need to open the asset a second time.
+//  (codec, encoding, duration, bitrate, sampleRate, channels, fileSize)
+//  from the same AVURLAsset. These are NOT tag metadata but are included
+//  in TagBundle so that consumers do not need to open the asset a second
+//  time. `encoding` is derived from `codec`.
 //
 //  See specs/02_01_apple.adapters.md for the full field→identifier table.
 
@@ -182,6 +183,7 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
         nonisolated(unsafe) var bitrateKbps: Int?
         nonisolated(unsafe) var sampleRateHz: Double?
         nonisolated(unsafe) var channelCount: Int?
+        nonisolated(unsafe) var codecName: String?
 
         let sema4 = DispatchSemaphore(value: 0)
         Task { @Sendable in
@@ -193,7 +195,7 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
                 }
             }
 
-            // Audio track properties: bitrate, sampleRate, channels
+            // Audio track properties: bitrate, sampleRate, channels, codec
             if let assetTracks = try? await asset.load(.tracks),
                let firstAudio = assetTracks.first(where: { $0.mediaType == .audio }) {
 
@@ -210,6 +212,7 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
                         if sr > 0 { sampleRateHz = sr }
                         let ch = Int(basic.pointee.mChannelsPerFrame)
                         if ch > 0 { channelCount = ch }
+                        codecName = Self.codecName(for: basic.pointee)
                     }
                 }
             }
@@ -222,6 +225,8 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
         bundle.bitrate = bitrateKbps
         bundle.sampleRate = sampleRateHz
         bundle.channels = channelCount
+        bundle.codec = codecName
+        bundle.encoding = codecName.flatMap(Self.encodingClassification(for:))
 
         // fileSize: synchronous FileManager call, no async needed.
         if url.isFileURL {
@@ -488,5 +493,53 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
             }
         }
         return (trackGain, albumGain)
+    }
+
+    // MARK: - Codec / Encoding Mapping
+
+    /// Maps a CoreAudio `AudioStreamBasicDescription` to a human-readable
+    /// codec name in foobar2000-style.
+    ///
+    /// Scope is limited to the codecs HarmoniaPlayer supports:
+    /// - v0.1 Free: MP3, AAC LC, Apple Lossless (ALAC), PCM (WAV / AIFF)
+    /// - v0.2 Pro: FLAC
+    ///
+    /// DSD (`.dsf` / `.dff`) is not handled here — it is decoded via a
+    /// separate adapter chain in v0.2 Pro and does not flow through
+    /// AVFoundation's `AudioStreamBasicDescription`.
+    ///
+    /// Returns `nil` for codec IDs that are not recognised.
+    fileprivate static func codecName(for asbd: AudioStreamBasicDescription) -> String? {
+        switch asbd.mFormatID {
+        case kAudioFormatMPEGLayer3:
+            return "MP3 Layer 3"
+        case kAudioFormatMPEG4AAC:
+            return "AAC LC"
+        case kAudioFormatAppleLossless:
+            return "Apple Lossless (ALAC)"
+        case kAudioFormatLinearPCM:
+            return "PCM"
+        case kAudioFormatFLAC:
+            return "FLAC"
+        default:
+            return nil
+        }
+    }
+
+    /// Classifies a codec name as `"lossy"` or `"lossless"`.
+    /// Returns `nil` for codec strings that are not recognised.
+    fileprivate static func encodingClassification(for codec: String) -> String? {
+        let lossy: Set<String> = [
+            "MP3 Layer 3",
+            "AAC LC"
+        ]
+        let lossless: Set<String> = [
+            "Apple Lossless (ALAC)",
+            "PCM",
+            "FLAC"
+        ]
+        if lossy.contains(codec) { return "lossy" }
+        if lossless.contains(codec) { return "lossless" }
+        return nil
     }
 }

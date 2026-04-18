@@ -411,8 +411,62 @@ final class TagBundleTests: XCTestCase {
                              "currentSchemaVersion must be > 0")
     }
 
-    func testCurrentSchemaVersion_EqualsOne() {
-        XCTAssertEqual(TagBundle.currentSchemaVersion, 1,
-                       "currentSchemaVersion should be 1 after adding technical info fields")
+    func testCurrentSchemaVersion_EqualsTwo() {
+        XCTAssertEqual(TagBundle.currentSchemaVersion, 2,
+                       "currentSchemaVersion should be 2 after adding codec and encoding fields")
+    }
+
+    // MARK: - Codec / Encoding Tests
+
+    func testTagBundle_Codec_DefaultNil() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.codec)
+    }
+
+    func testTagBundle_Encoding_DefaultNil() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.encoding)
+    }
+
+    func testTagBundle_Codec_StoresString() {
+        var bundle = TagBundle()
+        bundle.codec = "AAC LC"
+        XCTAssertEqual(bundle.codec, "AAC LC")
+    }
+
+    func testTagBundle_Encoding_StoresString() {
+        var bundle = TagBundle()
+        bundle.encoding = "lossy"
+        XCTAssertEqual(bundle.encoding, "lossy")
+    }
+
+    func testIsEmpty_WithOnlyCodec_StillEmpty() {
+        var bundle = TagBundle()
+        bundle.codec = "MP3 Layer 3"
+        XCTAssertTrue(bundle.isEmpty,
+                      "codec is technical info, not a tag field — should not affect isEmpty")
+    }
+
+    func testIsEmpty_WithOnlyEncoding_StillEmpty() {
+        var bundle = TagBundle()
+        bundle.encoding = "lossless"
+        XCTAssertTrue(bundle.isEmpty,
+                      "encoding is technical info, not a tag field — should not affect isEmpty")
+    }
+
+    func testEquatable_DifferentCodec() {
+        var a = TagBundle()
+        var b = TagBundle()
+        a.codec = "AAC LC"
+        b.codec = "MP3 Layer 3"
+        XCTAssertNotEqual(a, b)
+    }
+
+    func testEquatable_DifferentEncoding() {
+        var a = TagBundle()
+        var b = TagBundle()
+        a.encoding = "lossy"
+        b.encoding = "lossless"
+        XCTAssertNotEqual(a, b)
     }
 }

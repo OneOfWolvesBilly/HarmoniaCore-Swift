@@ -21,7 +21,8 @@ public struct TagBundle: Sendable, Equatable {
     /// History:
     /// - 0: legacy (no technical info fields)
     /// - 1: added duration, bitrate, sampleRate, channels, fileSize
-    public static let currentSchemaVersion: Int = 1
+    /// - 2: added codec, encoding
+    public static let currentSchemaVersion: Int = 2
 
     // MARK: - Tag Fields
 
@@ -47,6 +48,16 @@ public struct TagBundle: Sendable, Equatable {
     // These fields describe audio stream and file properties that are
     // read alongside tags from the same AVURLAsset. They are NOT tag
     // metadata in the ID3/MP4 sense and are excluded from `isEmpty`.
+
+    /// Audio codec name, e.g. "MP3 Layer 3", "AAC LC", "Apple Lossless (ALAC)",
+    /// "FLAC", "PCM". Derived from AVFoundation's `CMAudioFormatDescription`
+    /// (`mFormatID` and AAC object type from `formatSpecificInfo` when applicable).
+    /// `nil` if the codec cannot be determined.
+    public var codec: String?
+
+    /// Audio encoding classification, one of `"lossy"` or `"lossless"`.
+    /// Derived from `codec`. `nil` if codec is unknown.
+    public var encoding: String?
 
     /// Duration of the audio file in seconds. `nil` if unavailable.
     public var duration: TimeInterval?
@@ -82,6 +93,8 @@ public struct TagBundle: Sendable, Equatable {
         replayGainAlbum: Double? = nil,
         comment: String? = nil,
         artworkData: Data? = nil,
+        codec: String? = nil,
+        encoding: String? = nil,
         duration: TimeInterval? = nil,
         bitrate: Int? = nil,
         sampleRate: Double? = nil,
@@ -104,6 +117,8 @@ public struct TagBundle: Sendable, Equatable {
         self.replayGainAlbum = replayGainAlbum
         self.comment = comment
         self.artworkData = artworkData
+        self.codec = codec
+        self.encoding = encoding
         self.duration = duration
         self.bitrate = bitrate
         self.sampleRate = sampleRate
@@ -117,10 +132,10 @@ public struct TagBundle: Sendable, Equatable {
 extension TagBundle {
     /// Returns true if all tag fields are nil.
     ///
-    /// Technical info fields (duration, bitrate, sampleRate, channels, fileSize)
-    /// are excluded because they describe the audio stream, not user-facing tags.
-    /// A file with no ID3/MP4 tags but valid duration is still considered "empty"
-    /// from a tagging perspective.
+    /// Technical info fields (codec, encoding, duration, bitrate, sampleRate,
+    /// channels, fileSize) are excluded because they describe the audio stream,
+    /// not user-facing tags. A file with no ID3/MP4 tags but valid duration
+    /// is still considered "empty" from a tagging perspective.
     public var isEmpty: Bool {
         return title == nil &&
                artist == nil &&

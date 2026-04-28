@@ -74,6 +74,18 @@ public struct TagBundle: Sendable, Equatable {
     /// File size in bytes. `nil` if unavailable or non-file URL.
     public var fileSize: Int?
 
+    // MARK: - Lyrics
+
+    /// Embedded USLT lyrics variants.
+    ///
+    /// Each element represents one USLT frame in the audio file.
+    /// A single file may carry multiple variants for different languages
+    /// (e.g. English + Chinese + Japanese).
+    ///
+    /// `nil` when no USLT frames are present.
+    /// This is a user-facing tag field and affects `isEmpty`.
+    public var lyrics: [LyricsLanguageVariant]?
+
     // MARK: - Initialization
 
     public init(
@@ -99,7 +111,8 @@ public struct TagBundle: Sendable, Equatable {
         bitrate: Int? = nil,
         sampleRate: Double? = nil,
         channels: Int? = nil,
-        fileSize: Int? = nil
+        fileSize: Int? = nil,
+        lyrics: [LyricsLanguageVariant]? = nil
     ) {
         self.title = title
         self.artist = artist
@@ -124,6 +137,7 @@ public struct TagBundle: Sendable, Equatable {
         self.sampleRate = sampleRate
         self.channels = channels
         self.fileSize = fileSize
+        self.lyrics = lyrics
     }
 }
 
@@ -136,6 +150,8 @@ extension TagBundle {
     /// channels, fileSize) are excluded because they describe the audio stream,
     /// not user-facing tags. A file with no ID3/MP4 tags but valid duration
     /// is still considered "empty" from a tagging perspective.
+    ///
+    /// `lyrics` is a user-facing tag field and IS included in this check.
     public var isEmpty: Bool {
         return title == nil &&
                artist == nil &&
@@ -152,6 +168,7 @@ extension TagBundle {
                replayGainTrack == nil &&
                replayGainAlbum == nil &&
                comment == nil &&
-               artworkData == nil
+               artworkData == nil &&
+               lyrics == nil
     }
 }

@@ -469,4 +469,64 @@ final class TagBundleTests: XCTestCase {
         b.encoding = "lossless"
         XCTAssertNotEqual(a, b)
     }
+
+    // MARK: - Lyrics field tests (Slice 9-J)
+
+    func testTagBundle_Lyrics_DefaultNil() {
+        let bundle = TagBundle()
+        XCTAssertNil(bundle.lyrics)
+    }
+
+    func testTagBundle_Lyrics_StoresSingleVariant() {
+        var bundle = TagBundle()
+        bundle.lyrics = [LyricsLanguageVariant(languageCode: "eng", text: "hello")]
+        XCTAssertEqual(bundle.lyrics?.count, 1)
+        XCTAssertEqual(bundle.lyrics?.first?.text, "hello")
+        XCTAssertEqual(bundle.lyrics?.first?.languageCode, "eng")
+    }
+
+    func testTagBundle_Lyrics_StoresMultipleVariants() {
+        var bundle = TagBundle()
+        bundle.lyrics = [
+            LyricsLanguageVariant(languageCode: "eng", text: "Hello"),
+            LyricsLanguageVariant(languageCode: "chi", text: "你好")
+        ]
+        XCTAssertEqual(bundle.lyrics?.count, 2)
+    }
+
+    func testTagBundle_Lyrics_NilLanguageCode_IsStored() {
+        var bundle = TagBundle()
+        bundle.lyrics = [LyricsLanguageVariant(languageCode: nil, text: "undeclared")]
+        XCTAssertNil(bundle.lyrics?.first?.languageCode)
+        XCTAssertEqual(bundle.lyrics?.first?.text, "undeclared")
+    }
+
+    func testIsEmpty_WithLyrics_NotEmpty() {
+        var bundle = TagBundle()
+        bundle.lyrics = [LyricsLanguageVariant(languageCode: nil, text: "some lyrics")]
+        XCTAssertFalse(bundle.isEmpty, "lyrics is a user-facing tag field — isEmpty should be false")
+    }
+
+    func testEquatable_DifferentLyrics_AreNotEqual() {
+        var a = TagBundle()
+        var b = TagBundle()
+        a.lyrics = [LyricsLanguageVariant(languageCode: "eng", text: "Hello")]
+        b.lyrics = [LyricsLanguageVariant(languageCode: "eng", text: "World")]
+        XCTAssertNotEqual(a, b)
+    }
+
+    func testEquatable_SameLyrics_AreEqual() {
+        var a = TagBundle()
+        var b = TagBundle()
+        a.lyrics = [LyricsLanguageVariant(languageCode: "eng", text: "Hello")]
+        b.lyrics = [LyricsLanguageVariant(languageCode: "eng", text: "Hello")]
+        XCTAssertEqual(a, b)
+    }
+
+    func testInitialization_WithLyrics_StoresValue() {
+        let variant = LyricsLanguageVariant(languageCode: "jpn", text: "こんにちは")
+        let bundle = TagBundle(lyrics: [variant])
+        XCTAssertEqual(bundle.lyrics?.count, 1)
+        XCTAssertEqual(bundle.lyrics?.first?.languageCode, "jpn")
+    }
 }

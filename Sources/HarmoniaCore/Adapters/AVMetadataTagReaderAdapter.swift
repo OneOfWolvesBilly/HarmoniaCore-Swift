@@ -172,6 +172,10 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
         bundle.replayGainTrack = rgTrack
         bundle.replayGainAlbum = rgAlbum
 
+        // Embedded USLT lyrics (Slice 9-J)
+        let lyricsVariants = readEmbeddedLyrics(from: allItems)
+        bundle.lyrics = lyricsVariants.isEmpty ? nil : lyricsVariants
+
         // ── Step 4: Technical info (duration, bitrate, sampleRate, channels, fileSize) ──
         //
         // These are read from the same AVURLAsset that is already open for
@@ -452,6 +456,51 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
             return s
         }
         return nil
+    }
+
+    /// Reads all USLT (Unsynchronised Lyrics) frames from ID3 metadata.
+    ///
+    /// A single MP3 may contain multiple USLT frames, one per language.
+    /// Each frame is mapped to one `LyricsLanguageVariant`.
+    ///
+    /// **Language code extraction:**
+    /// AVFoundation populates `AVMetadataItem.locale` from the 3-byte ISO 639-2
+    /// language field in the USLT frame header. `locale.identifier` typically
+    /// returns the raw 3-letter code (e.g. `"eng"`, `"chi"`, `"jpn"`).
+    /// When the frame declares no language (empty or sentinel `"und"`), `languageCode`
+    /// is set to `nil`.
+    ///
+    /// **Extension point (v0.15):** to add TXXX-frame LYRICS compatibility,
+    /// add a TXXX branch inside this function without touching callers.
+    ///
+    /// - Parameter items: All metadata items from `asset.load(.metadata)`.
+    /// - Returns: Array of variants in file order. Empty when no USLT frames found.
+    private func readEmbeddedLyrics(
+        from items: [AVMetadataItem]
+    ) -> [LyricsLanguageVariant] {
+        let usltItems = AVMetadataItem.metadataItems(
+            from: items,
+            filteredByIdentifier: .id3MetadataUnsynchronizedLyric
+        )
+
+        var variants: [LyricsLanguageVariant] = []
+        for item in usltItems {
+            guard let text = loadString(from: item), !text.isEmpty else { continue }
+
+            // Extract ISO 639-2 language code from locale populated by AVFoundation.
+            // locale.identifier returns the raw code as written in the USLT frame
+            // (e.g. "eng", "chi", "jpn"). Empty string or "und" means undeclared.
+            let rawLang = item.locale?.identifier
+            let languageCode: String?
+            if let raw = rawLang, !raw.isEmpty, raw != "und" {
+                languageCode = raw
+            } else {
+                languageCode = nil
+            }
+
+            variants.append(LyricsLanguageVariant(languageCode: languageCode, text: text))
+        }
+        return variants
     }
 
     /// Reads ReplayGain track and album gain values from ID3 TXXX frames.

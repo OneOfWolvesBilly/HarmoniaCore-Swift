@@ -17,6 +17,7 @@ final class DefaultPlaybackServiceTests: XCTestCase {
     var mockAudio: MockAudioOutputPort!
     var mockClock: MockClockPort!
     var mockLogger: NoopLogger!
+    var mockEQ: MockEQPort!
     
     override func setUp() {
         super.setUp()
@@ -25,12 +26,14 @@ final class DefaultPlaybackServiceTests: XCTestCase {
         mockAudio = MockAudioOutputPort()
         mockClock = MockClockPort()
         mockLogger = NoopLogger()
+        mockEQ = MockEQPort()
         
         service = DefaultPlaybackService(
             decoder: mockDecoder,
             audio: mockAudio,
             clock: mockClock,
-            logger: mockLogger
+            logger: mockLogger,
+            eq: mockEQ
         )
     }
     
@@ -40,6 +43,7 @@ final class DefaultPlaybackServiceTests: XCTestCase {
         mockAudio = nil
         mockClock = nil
         mockLogger = nil
+        mockEQ = nil
         super.tearDown()
     }
     
@@ -327,5 +331,23 @@ final class DefaultPlaybackServiceTests: XCTestCase {
         service.stop()
         
         XCTAssertEqual(service.state, .stopped)
+    }
+
+    // MARK: - EQ insertion (Slice 9-K)
+
+    /// `testPlaybackService_LoadInsertsEQNode`: when `load(url:)`
+    /// succeeds, the service must insert the injected EQ node into
+    /// the audio chain by calling `EQPort.attach(to:after:)` exactly
+    /// once.
+    func testPlaybackService_LoadInsertsEQNode() throws {
+        XCTAssertFalse(mockEQ.attachCalled,
+                       "Precondition: attach must not be called before load()")
+
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+
+        XCTAssertTrue(mockEQ.attachCalled,
+                      "load(url:) must call EQPort.attach(to:after:)")
+        XCTAssertEqual(mockEQ.attachCallCount, 1,
+                       "EQPort.attach(to:after:) must be called exactly once per load(url:)")
     }
 }

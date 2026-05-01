@@ -75,4 +75,19 @@ public protocol PlaybackService: AnyObject {
     /// - Parameter volume: Target volume in the range 0.0 (silent) to 1.0 (full).
     ///   Values outside this range are clamped by implementations.
     func setVolume(_ volume: Float)
+
+    // MARK: - EQ control surface (Slice 9-K)
+
+    /// Enables or disables the equaliser. When disabled the EQ node
+    /// passes audio through unchanged.
+    func setEQEnabled(_ enabled: Bool)
+
+    /// Sets the EQ preamp gain in dB. Out-of-range values are clamped
+    /// by the implementation to the supported range (±12 dB).
+    func setEQPreamp(_ preamp: Float)
+
+    /// Sets per-band EQ gains in dB. The array length must match the
+    /// number of bands the implementation supports (Slice 9-K: 10).
+    /// Out-of-range values are clamped (±12 dB per band).
+    func setEQBandGains(_ gains: [Float])
 }

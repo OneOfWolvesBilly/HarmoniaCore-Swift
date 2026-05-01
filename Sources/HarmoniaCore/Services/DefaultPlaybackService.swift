@@ -8,6 +8,10 @@
 //
 
 import Foundation
+// FIXME: Slice 9-K commit 5 — remove this import after EQ wiring moves
+// to AudioOutputPort. Currently needed only for the placeholder
+// AVAudioEngine instance used to satisfy EQPort.attach in load().
+import AVFoundation
 
 public final class DefaultPlaybackService: PlaybackService {
     
@@ -17,6 +21,7 @@ public final class DefaultPlaybackService: PlaybackService {
     private let audio: AudioOutputPort
     private let clock: ClockPort
     private let logger: LoggerPort
+    private let eq: EQPort
     
     // MARK: - Internal State
     
@@ -44,12 +49,14 @@ public final class DefaultPlaybackService: PlaybackService {
         decoder: DecoderPort,
         audio: AudioOutputPort,
         clock: ClockPort,
-        logger: LoggerPort
+        logger: LoggerPort,
+        eq: EQPort
     ) {
         self.decoder = decoder
         self.audio = audio
         self.clock = clock
         self.logger = logger
+        self.eq = eq
     }
     
     // MARK: - PlaybackService Implementation
@@ -81,7 +88,21 @@ public final class DefaultPlaybackService: PlaybackService {
                 // Re-apply volume: audio.configure() reconnects the AVAudioEngine
                 // node graph, which may reset mainMixerNode.outputVolume to 1.0.
                 audio.setVolume(currentVolume)
-                
+
+                // Insert EQ node into the audio chain.
+                //
+                // FIXME: Slice 9-K commit 5 — wire EQ into the real audio chain
+                // via AudioOutputPort. The real engine and the real
+                // upstream node both live inside `audio` (the
+                // AVAudioEngineOutputAdapter). Until commit 5 surfaces
+                // them through AudioOutputPort, we satisfy the spec
+                // contract ("attach is called once per load()") with
+                // placeholder values; EQ processing therefore has no
+                // audible effect yet.
+                let placeholderEngine = AVAudioEngine()
+                let placeholderPrevious = placeholderEngine.mainMixerNode
+                try eq.attach(to: placeholderEngine, after: placeholderPrevious)
+
                 // Update state
                 currentHandle = handle
                 streamInfo = info
@@ -231,6 +252,27 @@ public final class DefaultPlaybackService: PlaybackService {
         let clamped = max(0.0, min(1.0, volume))
         currentVolume = clamped
         audio.setVolume(clamped)
+    }
+
+    // MARK: - EQ control surface (Slice 9-K — RED phase stubs)
+    //
+    // These methods are required by the PlaybackService protocol and
+    // exist here only so the project compiles. The green phase will:
+    //   - call eq.attach(to:after:) from load(url:) once the engine is
+    //     reachable from the audio adapter
+    //   - fan setEQEnabled / setEQPreamp / setEQBandGains out to the
+    //     injected EQPort
+
+    public func setEQEnabled(_ enabled: Bool) {
+        // not implemented yet (red phase)
+    }
+
+    public func setEQPreamp(_ preamp: Float) {
+        // not implemented yet (red phase)
+    }
+
+    public func setEQBandGains(_ gains: [Float]) {
+        // not implemented yet (red phase)
     }
     
     // MARK: - Private Helpers

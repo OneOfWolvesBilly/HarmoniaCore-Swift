@@ -40,6 +40,12 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
 
+    /// EQ node spliced between `playerNode` and `engine.mainMixerNode`
+    /// during `configure(...)`. When `nil` the chain is direct
+    /// (no EQ), preserving the pre-Slice 9-K behaviour for adapters
+    /// constructed without an EQ.
+    private let eq: EQPort?
+
     private let lock = NSLock()
     private var audioFormat: AVAudioFormat?
     private var framesPerBuffer: AVAudioFrameCount = 0
@@ -50,8 +56,9 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
     private static let maxInFlight = 2
     private var bufferSemaphore = DispatchSemaphore(value: maxInFlight)
 
-    public init(logger: LoggerPort) {
+    public init(logger: LoggerPort, eq: EQPort? = nil) {
         self.logger = logger
+        self.eq = eq
         engine.attach(playerNode)
     }
 
@@ -73,7 +80,20 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
         }
 
         engine.disconnectNodeOutput(playerNode)
-        engine.connect(playerNode, to: engine.mainMixerNode, format: format)
+        if let eq = eq {
+            // Splice EQ into the chain: playerNode → eq → mainMixerNode.
+            // The EQ adapter handles both connect calls atomically and
+            // disconnects any pre-existing playerNode → mainMixerNode
+            // connection internally. This is the ONLY place in the
+            // codebase where the live audio chain is wired, so EQ
+            // control surface mutations now affect actual audio.
+            try eq.attach(to: engine,
+                          between: playerNode,
+                          and: engine.mainMixerNode,
+                          format: format)
+        } else {
+            engine.connect(playerNode, to: engine.mainMixerNode, format: format)
+        }
 
         self.audioFormat = format
         self.framesPerBuffer = AVAudioFrameCount(framesPerBuffer)

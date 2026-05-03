@@ -35,12 +35,22 @@ public protocol EQPort: AnyObject {
     var bandGains: [Float] { get set }
 
     /// Attaches the EQ node to the engine and inserts it into the
-    /// audio chain immediately after `previous`. Must be called once
+    /// audio chain BETWEEN `previous` and `next`. Must be called once
     /// before audio flows through the chain.
+    ///
+    /// The implementation is responsible for the full segment wiring:
+    /// `previous → eq` AND `eq → next`. Any pre-existing
+    /// `previous → next` connection must be replaced.
     ///
     /// - Parameters:
     ///   - engine: The `AVAudioEngine` instance owning the audio chain.
     ///   - previous: The node directly upstream of the EQ.
+    ///   - next: The node directly downstream of the EQ.
+    ///   - format: Audio format applied to both connect calls. Pass
+    ///     `nil` to let AVAudioEngine infer.
     /// - Throws: An implementation-defined error if attachment fails.
-    func attach(to engine: AVAudioEngine, after previous: AVAudioNode) throws
+    func attach(to engine: AVAudioEngine,
+                between previous: AVAudioNode,
+                and next: AVAudioNode,
+                format: AVAudioFormat?) throws
 }

@@ -92,11 +92,18 @@ public final class AVAudioUnitEQAdapter: EQPort {
         }
     }
 
-    public func attach(to engine: AVAudioEngine, after previous: AVAudioNode) throws {
+    /// Wires the EQ as a full chain segment: previous → eq → next.
+    /// Any pre-existing `previous → next` connection is replaced.
+    public func attach(to engine: AVAudioEngine,
+                       between previous: AVAudioNode,
+                       and next: AVAudioNode,
+                       format: AVAudioFormat?) throws {
         engine.attach(eq)
-        // Audio chain insertion: previous → eq.
-        // Connecting eq → next is the caller's responsibility.
-        engine.connect(previous, to: eq, format: nil)
+        // Tear down whatever previous was connected to (typically `next`
+        // directly) so we can splice the EQ node into the segment.
+        engine.disconnectNodeOutput(previous)
+        engine.connect(previous, to: eq,   format: format)
+        engine.connect(eq,       to: next, format: format)
     }
 
     // MARK: - Private helpers

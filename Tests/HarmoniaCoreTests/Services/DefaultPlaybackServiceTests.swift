@@ -333,21 +333,25 @@ final class DefaultPlaybackServiceTests: XCTestCase {
         XCTAssertEqual(service.state, .stopped)
     }
 
-    // MARK: - EQ insertion (Slice 9-K)
+    // MARK: - EQ wiring (Slice 9-K signal-chain fix)
 
-    /// `testPlaybackService_LoadInsertsEQNode`: when `load(url:)`
-    /// succeeds, the service must insert the injected EQ node into
-    /// the audio chain by calling `EQPort.attach(to:after:)` exactly
-    /// once.
-    func testPlaybackService_LoadInsertsEQNode() throws {
+    /// `testPlaybackService_LoadDoesNotAttachEQ`: EQ chain wiring is
+    /// now the responsibility of `AudioOutputPort.configure(...)`, not
+    /// `DefaultPlaybackService.load(url:)`. The service still holds the
+    /// EQ reference for control-surface forwarding (setEQEnabled /
+    /// setEQPreamp / setEQBandGains) but must not call `attach(...)`
+    /// itself — doing so would either double-attach or splice the EQ
+    /// into a placeholder engine disconnected from the real audio
+    /// path (the bug this fix addresses).
+    func testPlaybackService_LoadDoesNotAttachEQ() throws {
         XCTAssertFalse(mockEQ.attachCalled,
                        "Precondition: attach must not be called before load()")
 
         try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
 
-        XCTAssertTrue(mockEQ.attachCalled,
-                      "load(url:) must call EQPort.attach(to:after:)")
-        XCTAssertEqual(mockEQ.attachCallCount, 1,
-                       "EQPort.attach(to:after:) must be called exactly once per load(url:)")
+        XCTAssertFalse(mockEQ.attachCalled,
+                       "load(url:) must NOT call EQPort.attach — wiring belongs to AudioOutputPort")
+        XCTAssertEqual(mockEQ.attachCallCount, 0,
+                       "EQPort.attach must not be invoked from DefaultPlaybackService")
     }
 }

@@ -8,10 +8,6 @@
 //
 
 import Foundation
-// FIXME: Slice 9-K commit 5 — remove this import after EQ wiring moves
-// to AudioOutputPort. Currently needed only for the placeholder
-// AVAudioEngine instance used to satisfy EQPort.attach in load().
-import AVFoundation
 
 public final class DefaultPlaybackService: PlaybackService {
     
@@ -89,19 +85,12 @@ public final class DefaultPlaybackService: PlaybackService {
                 // node graph, which may reset mainMixerNode.outputVolume to 1.0.
                 audio.setVolume(currentVolume)
 
-                // Insert EQ node into the audio chain.
-                //
-                // FIXME: Slice 9-K commit 5 — wire EQ into the real audio chain
-                // via AudioOutputPort. The real engine and the real
-                // upstream node both live inside `audio` (the
-                // AVAudioEngineOutputAdapter). Until commit 5 surfaces
-                // them through AudioOutputPort, we satisfy the spec
-                // contract ("attach is called once per load()") with
-                // placeholder values; EQ processing therefore has no
-                // audible effect yet.
-                let placeholderEngine = AVAudioEngine()
-                let placeholderPrevious = placeholderEngine.mainMixerNode
-                try eq.attach(to: placeholderEngine, after: placeholderPrevious)
+                // EQ chain wiring is performed by AudioOutputPort during
+                // its configure(...) call above. The EQ instance held by
+                // this service shares its underlying node with the one
+                // wired into the audio engine; mutations via
+                // setEQEnabled/Preamp/BandGains therefore affect the
+                // live signal chain.
 
                 // Update state
                 currentHandle = handle

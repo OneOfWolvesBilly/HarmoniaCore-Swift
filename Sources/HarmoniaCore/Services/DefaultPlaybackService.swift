@@ -243,25 +243,25 @@ public final class DefaultPlaybackService: PlaybackService {
         audio.setVolume(clamped)
     }
 
-    // MARK: - EQ control surface (Slice 9-K — RED phase stubs)
+    // MARK: - EQ control surface (Slice 9-K)
     //
-    // These methods are required by the PlaybackService protocol and
-    // exist here only so the project compiles. The green phase will:
-    //   - call eq.attach(to:after:) from load(url:) once the engine is
-    //     reachable from the audio adapter
-    //   - fan setEQEnabled / setEQPreamp / setEQBandGains out to the
-    //     injected EQPort
+    // Forward control mutations to the injected EQPort. The same EQPort
+    // instance is wired into the audio chain by AudioOutputPort.configure(...)
+    // (HarmoniaPlayer constructs it in HarmoniaCoreProvider.buildCore() and
+    // passes the same reference to both this service and the audio adapter),
+    // so these setters mutate the live DSP node and changes are audible
+    // immediately.
 
     public func setEQEnabled(_ enabled: Bool) {
-        // not implemented yet (red phase)
+        eq.isEnabled = enabled
     }
 
     public func setEQPreamp(_ preamp: Float) {
-        // not implemented yet (red phase)
+        eq.preamp = preamp
     }
 
     public func setEQBandGains(_ gains: [Float]) {
-        // not implemented yet (red phase)
+        eq.bandGains = gains
     }
     
     // MARK: - Private Helpers

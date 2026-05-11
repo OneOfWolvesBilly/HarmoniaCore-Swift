@@ -15,7 +15,7 @@ public final class DefaultPlaybackService: PlaybackService {
     
     private let decoder: DecoderPort
     private let audio: AudioOutputPort
-    private let clock: ClockPort
+    private let time: MonotonicTimePort
     private let logger: LoggerPort
     private let eq: EQPort
     
@@ -44,13 +44,13 @@ public final class DefaultPlaybackService: PlaybackService {
     public init(
         decoder: DecoderPort,
         audio: AudioOutputPort,
-        clock: ClockPort,
+        time: MonotonicTimePort,
         logger: LoggerPort,
         eq: EQPort
     ) {
         self.decoder = decoder
         self.audio = audio
-        self.clock = clock
+        self.time = time
         self.logger = logger
         self.eq = eq
     }
@@ -128,7 +128,7 @@ public final class DefaultPlaybackService: PlaybackService {
                 
                 // Update state
                 _state = .playing
-                playbackStartTime = clock.now()
+                playbackStartTime = time.now()
                 
                 logger.info("Playing")
                 
@@ -210,9 +210,9 @@ public final class DefaultPlaybackService: PlaybackService {
                 try decoder.seek(handle, toSeconds: seconds)
                 lastKnownPosition = seconds
 
-                // Reset clock if playing so currentTime() tracks from new position.
+                // Reset time if playing so currentTime() tracks from new position.
                 if wasPlaying {
-                    playbackStartTime = clock.now()
+                    playbackStartTime = time.now()
                 }
 
                 logger.info("Seeked to \(seconds)s")
@@ -269,9 +269,9 @@ public final class DefaultPlaybackService: PlaybackService {
     private func calculateCurrentPosition() -> Double {
         switch _state {
         case .playing, .buffering:
-            // .buffering is used during EOF drain — clock keeps running so
+            // .buffering is used during EOF drain — time keeps running so
             // the progress bar continues to the end of the track.
-            let elapsed = Double(clock.now() - playbackStartTime) / 1_000_000_000.0
+            let elapsed = Double(time.now() - playbackStartTime) / 1_000_000_000.0
             return min(lastKnownPosition + elapsed, streamInfo?.duration ?? 0)
         case .paused:
             return lastKnownPosition

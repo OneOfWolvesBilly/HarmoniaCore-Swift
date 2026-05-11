@@ -1,16 +1,16 @@
 //
-//  MockClockPort.swift
+//  MockMonotonicTimePort.swift
 //  HarmoniaCoreTests / Mocks
 //
 //  SPDX-License-Identifier: MIT
 //
-//  Mock implementation of ClockPort for testing time-dependent behavior.
+//  Mock implementation of MonotonicTimePort for testing time-dependent behavior.
 //
 
 import Foundation
 @testable import HarmoniaCore
 
-public final class MockClockPort: ClockPort {
+public final class MockMonotonicTimePort: MonotonicTimePort {
     
     private var currentTime: UInt64
     public var nowCallCount = 0

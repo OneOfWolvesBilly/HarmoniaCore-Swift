@@ -15,7 +15,7 @@ final class DefaultPlaybackServiceTests: XCTestCase {
     var service: DefaultPlaybackService!
     var mockDecoder: MockDecoderPort!
     var mockAudio: MockAudioOutputPort!
-    var mockClock: MockClockPort!
+    var mockClock: MockMonotonicTimePort!
     var mockLogger: NoopLogger!
     var mockEQ: MockEQPort!
     
@@ -24,14 +24,14 @@ final class DefaultPlaybackServiceTests: XCTestCase {
         
         mockDecoder = MockDecoderPort(duration: 10.0, sampleRate: 44100.0)
         mockAudio = MockAudioOutputPort()
-        mockClock = MockClockPort()
+        mockClock = MockMonotonicTimePort()
         mockLogger = NoopLogger()
         mockEQ = MockEQPort()
         
         service = DefaultPlaybackService(
             decoder: mockDecoder,
             audio: mockAudio,
-            clock: mockClock,
+            time: mockClock,
             logger: mockLogger,
             eq: mockEQ
         )

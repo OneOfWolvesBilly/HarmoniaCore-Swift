@@ -1,5 +1,5 @@
 //
-//  ClockPort.swift
+//  MonotonicTimePort.swift
 //  HarmoniaCore / Ports
 //
 //  SPDX-License-Identifier: MIT
@@ -14,7 +14,7 @@
 ///
 /// Thread Safety: Must be safe to call from any thread without synchronization.
 /// Real-Time Safety: Should be safe to call from real-time audio threads.
-public protocol ClockPort: Sendable {
+public protocol MonotonicTimePort: Sendable {
     
     /// Returns monotonic time in nanoseconds since an unspecified epoch.
     ///
@@ -28,10 +28,10 @@ public protocol ClockPort: Sendable {
     ///
     /// # Example
     /// ```swift
-    /// let clock: ClockPort = MonotonicClockAdapter()
-    /// let start = clock.now()
+    /// let time: MonotonicTimePort = MonotonicTimeAdapter()
+    /// let start = time.now()
     /// // ... perform operation ...
-    /// let elapsed = clock.now() - start
+    /// let elapsed = time.now() - start
     /// print("Operation took \(elapsed) nanoseconds")
     /// ```
     func now() -> UInt64

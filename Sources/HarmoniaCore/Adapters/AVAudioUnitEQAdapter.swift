@@ -5,9 +5,9 @@
 //  SPDX-License-Identifier: MIT
 //
 //  Apple-platform EQPort implementation backed by AVAudioUnitEQ.
-//  Slice 9-K: 10-band graphic EQ.
+//  10-band graphic EQ.
 //
-//  CONFIGURATION (per spec §9-K)
+//  CONFIGURATION
 //  -----------------------------
 //  - numberOfBands: 10
 //  - centre frequencies (Hz): 32, 64, 125, 250, 500, 1k, 2k, 4k, 8k, 16k

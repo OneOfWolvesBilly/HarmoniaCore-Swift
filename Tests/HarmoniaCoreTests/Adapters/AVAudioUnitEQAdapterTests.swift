@@ -4,7 +4,7 @@
 //
 //  SPDX-License-Identifier: MIT
 //
-//  Slice 9-K: AVAudioUnitEQAdapter unit tests.
+//  AVAudioUnitEQAdapter unit tests.
 //
 //  TESTING APPROACH
 //  ----------------

@@ -172,7 +172,7 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
         bundle.replayGainTrack = rgTrack
         bundle.replayGainAlbum = rgAlbum
 
-        // Embedded USLT lyrics (Slice 9-J)
+        // Embedded USLT lyrics
         let lyricsVariants = readEmbeddedLyrics(from: allItems)
         bundle.lyrics = lyricsVariants.isEmpty ? nil : lyricsVariants
 

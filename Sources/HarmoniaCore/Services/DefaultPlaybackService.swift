@@ -243,7 +243,7 @@ public final class DefaultPlaybackService: PlaybackService {
         audio.setVolume(clamped)
     }
 
-    // MARK: - EQ control surface (Slice 9-K)
+    // MARK: - EQ control surface
     //
     // Forward control mutations to the injected EQPort. The same EQPort
     // instance is wired into the audio chain by AudioOutputPort.configure(...)

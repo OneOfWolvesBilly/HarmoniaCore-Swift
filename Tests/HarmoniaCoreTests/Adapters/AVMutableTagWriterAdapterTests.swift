@@ -233,12 +233,12 @@ final class AVMutableTagWriterAdapterTests: XCTestCase {
         XCTAssertNotNil(adapter2)
     }
 
-    // MARK: - File replacement preserves attributes (Slice 9-B)
+    // MARK: - File replacement preserves attributes
     //
     // write() uses an internal helper replaceFile(at:withTempFileAt:) to swap
     // the export session's temp output onto the original URL. The helper must
     // preserve the original file's extended attributes, creation date, and
-    // other POSIX/ACL metadata — this is the fix for the pre-9-B bug where
+    // other POSIX/ACL metadata — this is the fix for the earlier bug where
     // removeItem + moveItem silently dropped xattr (including
     // kMDItemWhereFroms) and reset the creation date to "now".
     //
@@ -313,7 +313,7 @@ final class AVMutableTagWriterAdapterTests: XCTestCase {
         try sut.replaceFile(at: originalURL, withTempFileAt: tempURL)
 
         // Then: the creation date must match the original file's, not "now"
-        // (which would be the result of the pre-9-B removeItem + moveItem).
+        // (which would be the result of an earlier removeItem + moveItem approach).
         let attrs = try FileManager.default.attributesOfItem(atPath: originalURL.path)
         let actual = attrs[.creationDate] as? Date
         XCTAssertNotNil(actual,

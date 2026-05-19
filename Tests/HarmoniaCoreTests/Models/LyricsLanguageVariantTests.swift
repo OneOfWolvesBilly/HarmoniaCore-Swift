@@ -4,7 +4,7 @@
 //
 //  SPDX-License-Identifier: MIT
 //
-//  Tests for LyricsLanguageVariant model (Slice 9-J).
+//  Tests for LyricsLanguageVariant model.
 //
 
 import XCTest

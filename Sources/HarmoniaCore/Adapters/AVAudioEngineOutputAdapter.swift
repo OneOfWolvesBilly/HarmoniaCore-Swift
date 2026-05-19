@@ -42,7 +42,7 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
 
     /// EQ node spliced between `playerNode` and `engine.mainMixerNode`
     /// during `configure(...)`. When `nil` the chain is direct
-    /// (no EQ), preserving the pre-Slice 9-K behaviour for adapters
+    /// (no EQ), preserving the direct-chain behaviour for adapters
     /// constructed without an EQ.
     ///
     /// Typed as the concrete `AVAudioUnitEQAdapter` rather than the

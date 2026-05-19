@@ -29,8 +29,7 @@ public protocol EQPort: AnyObject {
     /// Implementations clamp out-of-range writes to ±12 dB.
     var preamp: Float { get set }
 
-    /// Per-band gain values in dB. The array length is fixed at 10
-    /// (Slice 9-K). Implementations clamp out-of-range writes to
-    /// ±12 dB per band.
+    /// Per-band gain values in dB. The array length is fixed at 10.
+    /// Implementations clamp out-of-range writes to ±12 dB per band.
     var bandGains: [Float] { get set }
 }

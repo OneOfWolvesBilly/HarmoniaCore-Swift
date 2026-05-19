@@ -243,7 +243,7 @@ public final class AVMutableTagWriterAdapter: TagWriterPort {
     /// Uses `FileManager.replaceItem(at:withItemAt:backupItemName:options:resultingItemURL:)`
     /// which performs an atomic rename on same-volume replacements and
     /// explicitly transfers the original file's metadata onto the replacement.
-    /// This fixes the pre-9-B bug where `removeItem` + `moveItem` silently
+    /// This fixes an earlier bug where `removeItem` + `moveItem` silently
     /// dropped `kMDItemWhereFroms` and reset the creation date to "now".
     ///
     /// Internal visibility is intentional — exposed for unit testing without

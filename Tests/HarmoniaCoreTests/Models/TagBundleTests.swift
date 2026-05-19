@@ -470,7 +470,7 @@ final class TagBundleTests: XCTestCase {
         XCTAssertNotEqual(a, b)
     }
 
-    // MARK: - Lyrics field tests (Slice 9-J)
+    // MARK: - Lyrics field tests
 
     func testTagBundle_Lyrics_DefaultNil() {
         let bundle = TagBundle()

@@ -44,7 +44,12 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
     /// during `configure(...)`. When `nil` the chain is direct
     /// (no EQ), preserving the pre-Slice 9-K behaviour for adapters
     /// constructed without an EQ.
-    private let eq: EQPort?
+    ///
+    /// Typed as the concrete `AVAudioUnitEQAdapter` rather than the
+    /// `EQPort` protocol: graph wiring is an adapter-to-adapter
+    /// concern between two Apple-specific implementations, not part
+    /// of the platform-agnostic Port contract.
+    private let eq: AVAudioUnitEQAdapter?
 
     private let lock = NSLock()
     private var audioFormat: AVAudioFormat?
@@ -56,7 +61,7 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
     private static let maxInFlight = 2
     private var bufferSemaphore = DispatchSemaphore(value: maxInFlight)
 
-    public init(logger: LoggerPort, eq: EQPort? = nil) {
+    public init(logger: LoggerPort, eq: AVAudioUnitEQAdapter? = nil) {
         self.logger = logger
         self.eq = eq
         engine.attach(playerNode)

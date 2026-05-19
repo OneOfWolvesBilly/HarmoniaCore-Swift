@@ -92,8 +92,14 @@ public final class AVAudioUnitEQAdapter: EQPort {
         }
     }
 
+    // MARK: - Graph wiring (Apple-specific, not part of EQPort)
+
     /// Wires the EQ as a full chain segment: previous → eq → next.
     /// Any pre-existing `previous → next` connection is replaced.
+    ///
+    /// Not part of the `EQPort` protocol — graph wiring is the
+    /// responsibility of the platform adapter that owns the audio
+    /// engine, not of the platform-agnostic Port.
     public func attach(to engine: AVAudioEngine,
                        between previous: AVAudioNode,
                        and next: AVAudioNode,

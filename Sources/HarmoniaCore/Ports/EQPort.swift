@@ -8,16 +8,16 @@
 //
 //  PURPOSE
 //  -------
-//  EQPort is the abstract pluggable EQ node that can be inserted into
-//  the audio chain between the decoder and the audio output. It exposes
-//  the runtime control surface (enable, preamp, per-band gain) and the
-//  one-shot attach call that wires the EQ DSP node into an
-//  `AVAudioEngine` graph.
+//  EQPort is the abstract pluggable EQ node that exposes the runtime
+//  control surface (enable, preamp, per-band gain) consumed by
+//  PlaybackService implementations.
+//
+//  Graph wiring — attaching the EQ DSP node into a concrete audio
+//  engine — is the responsibility of the platform adapter that owns
+//  the engine, not of the Port. The Port stays platform-agnostic.
 //
 //  All gain values are expressed in decibels.
 //
-
-import AVFoundation
 
 public protocol EQPort: AnyObject {
 
@@ -33,24 +33,4 @@ public protocol EQPort: AnyObject {
     /// (Slice 9-K). Implementations clamp out-of-range writes to
     /// ±12 dB per band.
     var bandGains: [Float] { get set }
-
-    /// Attaches the EQ node to the engine and inserts it into the
-    /// audio chain BETWEEN `previous` and `next`. Must be called once
-    /// before audio flows through the chain.
-    ///
-    /// The implementation is responsible for the full segment wiring:
-    /// `previous → eq` AND `eq → next`. Any pre-existing
-    /// `previous → next` connection must be replaced.
-    ///
-    /// - Parameters:
-    ///   - engine: The `AVAudioEngine` instance owning the audio chain.
-    ///   - previous: The node directly upstream of the EQ.
-    ///   - next: The node directly downstream of the EQ.
-    ///   - format: Audio format applied to both connect calls. Pass
-    ///     `nil` to let AVAudioEngine infer.
-    /// - Throws: An implementation-defined error if attachment fails.
-    func attach(to engine: AVAudioEngine,
-                between previous: AVAudioNode,
-                and next: AVAudioNode,
-                format: AVAudioFormat?) throws
 }

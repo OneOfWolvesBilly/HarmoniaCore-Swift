@@ -288,6 +288,26 @@ final class TagBundleTests: XCTestCase {
         XCTAssertEqual(tags.comment, "Remastered 2023")
     }
 
+    // MARK: - Tag field storage
+
+    func testAlbumArtist_StoresString() {
+        var tags = TagBundle()
+        tags.albumArtist = "Various Artists"
+        XCTAssertEqual(tags.albumArtist, "Various Artists")
+    }
+
+    func testGenre_StoresString() {
+        var tags = TagBundle()
+        tags.genre = "Rock"
+        XCTAssertEqual(tags.genre, "Rock")
+    }
+
+    func testDiscNumber_StoresPositiveInt() {
+        var tags = TagBundle()
+        tags.discNumber = 2
+        XCTAssertEqual(tags.discNumber, 2)
+    }
+
     func testInitialization_WithNewFields() {
         let tags = TagBundle(
             title: "Song",

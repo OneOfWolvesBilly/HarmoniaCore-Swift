@@ -224,15 +224,6 @@ final class AVMutableTagWriterAdapterTests: XCTestCase {
         XCTAssertTrue(items.isEmpty, "Empty TagBundle should produce no metadata items")
     }
 
-    // MARK: - Adapter instantiation
-
-    func testAdapter_CanBeInstantiatedMultipleTimes() {
-        let adapter1 = AVMutableTagWriterAdapter()
-        let adapter2 = AVMutableTagWriterAdapter()
-        XCTAssertNotNil(adapter1)
-        XCTAssertNotNil(adapter2)
-    }
-
     // MARK: - File replacement preserves attributes
     //
     // write() uses an internal helper replaceFile(at:withTempFileAt:) to swap

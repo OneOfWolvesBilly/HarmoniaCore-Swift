@@ -8,19 +8,11 @@
 //
 //  TESTING APPROACH
 //  ----------------
-//  These tests cover the EQPort control surface only:
-//  default state, in-range read/write, and clamping at ±12 dB.
-//  They do NOT exercise audio rendering or the attach() chain
-//  insertion — that is verified at the playback-service layer
-//  (`testPlaybackService_LoadInsertsEQNode` in
-//  DefaultPlaybackServiceTests).
-//
-//  RED PHASE
-//  ---------
-//  The current `AVAudioUnitEQAdapter` is a stub skeleton; every
-//  test in this file is expected to fail until the green phase
-//  replaces the skeleton with the real AVAudioUnitEQ-backed
-//  implementation.
+//  These tests cover the EQPort control surface only: default state,
+//  in-range read/write, and clamping at ±12 dB. They do NOT exercise
+//  audio rendering or AVAudioEngine graph wiring — the attach(to:between:and:format:)
+//  helper requires a live audio engine and belongs in an integration
+//  test target alongside the AVAudioEngineOutputAdapter.
 //
 
 import XCTest

@@ -470,7 +470,7 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
     /// When the frame declares no language (empty or sentinel `"und"`), `languageCode`
     /// is set to `nil`.
     ///
-    /// **Extension point (v0.15):** to add TXXX-frame LYRICS compatibility,
+    /// **Extension point:** to add TXXX-frame LYRICS compatibility,
     /// add a TXXX branch inside this function without touching callers.
     ///
     /// - Parameter items: All metadata items from `asset.load(.metadata)`.
@@ -549,13 +549,11 @@ public final class AVMetadataTagReaderAdapter: TagReaderPort {
     /// Maps a CoreAudio `AudioStreamBasicDescription` to a human-readable
     /// codec name in foobar2000-style.
     ///
-    /// Scope is limited to the codecs HarmoniaPlayer supports:
-    /// - v0.1 Free: MP3, AAC LC, Apple Lossless (ALAC), PCM (WAV / AIFF)
-    /// - v0.2 Pro: FLAC
+    /// Scope is limited to the codecs this adapter recognises:
+    /// MP3, AAC LC, Apple Lossless (ALAC), PCM (WAV / AIFF), FLAC.
     ///
-    /// DSD (`.dsf` / `.dff`) is not handled here — it is decoded via a
-    /// separate adapter chain in v0.2 Pro and does not flow through
-    /// AVFoundation's `AudioStreamBasicDescription`.
+    /// DSD (`.dsf` / `.dff`) is not handled here — it does not flow
+    /// through AVFoundation's `AudioStreamBasicDescription`.
     ///
     /// Returns `nil` for codec IDs that are not recognised.
     fileprivate static func codecName(for asbd: AudioStreamBasicDescription) -> String? {

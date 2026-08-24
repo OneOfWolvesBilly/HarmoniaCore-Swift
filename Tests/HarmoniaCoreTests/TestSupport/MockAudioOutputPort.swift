@@ -11,10 +11,15 @@ import Foundation
 @testable import HarmoniaCore
 
 public final class MockAudioOutputPort: AudioOutputPort {
-    
+
+    /// Invalidation callback (AudioOutputPort). The owner under test installs
+    /// its handler here at construction time; fire it with `simulateInvalidation()`.
+    public var onInvalidated: (() -> Void)?
+
     // MARK: - Tracking Properties
     
     public var configureCalled = false
+    public var configureCallCount = 0
     public var startCalled = false
     public var stopCalled = false
     public var renderCalled = false
@@ -50,6 +55,7 @@ public final class MockAudioOutputPort: AudioOutputPort {
     
     public func configure(sampleRate: Double, channels: Int, framesPerBuffer: Int) throws {
         configureCalled = true
+        configureCallCount += 1
         lastConfiguredSampleRate = sampleRate
         lastConfiguredChannels = channels
         lastConfiguredFramesPerBuffer = framesPerBuffer
@@ -103,9 +109,16 @@ public final class MockAudioOutputPort: AudioOutputPort {
     }
     
     // MARK: - Test Helpers
-    
+
+    /// Fires the invalidation callback, mimicking an adapter that has already
+    /// stopped itself, discarded its configuration, and released render() waiters.
+    public func simulateInvalidation() {
+        onInvalidated?()
+    }
+
     public func reset() {
         configureCalled = false
+        configureCallCount = 0
         startCalled = false
         stopCalled = false
         renderCalled = false

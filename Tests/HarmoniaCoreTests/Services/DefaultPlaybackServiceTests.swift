@@ -294,6 +294,138 @@ final class DefaultPlaybackServiceTests: XCTestCase {
         XCTAssertEqual(service.state, .paused)
     }
     
+    // MARK: - Output Invalidation Tests
+
+    func testOutputInvalidation_WhilePlaying_TransitionsToPausedAndStopsOutput() throws {
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        try service.play()
+        XCTAssertEqual(service.state, .playing)
+
+        mockAudio.simulateInvalidation()
+
+        XCTAssertEqual(service.state, .paused)
+        XCTAssertTrue(mockAudio.stopCalled)
+    }
+
+    func testOutputInvalidation_WhilePlaying_PreservesPosition() throws {
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        try service.play()
+        mockClock.advanceSeconds(3.0)
+
+        mockAudio.simulateInvalidation()
+
+        XCTAssertEqual(service.currentTime(), 3.0, accuracy: 0.1)
+
+        // Frozen while paused: the wall clock keeps running, the position must not.
+        mockClock.advanceSeconds(5.0)
+        XCTAssertEqual(service.currentTime(), 3.0, accuracy: 0.1)
+    }
+
+    func testOutputInvalidation_WhilePaused_LeavesStateUnchanged() throws {
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        try service.seek(to: 4.0)
+        XCTAssertEqual(service.state, .paused)
+
+        mockAudio.simulateInvalidation()
+
+        XCTAssertEqual(service.state, .paused)
+        XCTAssertEqual(service.currentTime(), 4.0, accuracy: 0.1)
+    }
+
+    // MARK: - Rebuild-on-Start Tests
+
+    func testPlay_AfterLoad_RebuildsOutput() throws {
+        service.setVolume(0.4)
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        mockAudio.reset()
+        mockDecoder.lastSeekPosition = nil
+
+        try service.play()
+
+        XCTAssertEqual(mockAudio.configureCallCount, 1)
+        XCTAssertEqual(mockAudio.setVolumeCallCount, 1)
+        XCTAssertEqual(mockAudio.lastSetVolume, 0.4, accuracy: Float(0.001))
+        XCTAssertEqual(mockDecoder.lastSeekPosition, 0.0)
+        XCTAssertEqual(service.state, .playing)
+    }
+
+    func testPlay_AfterPause_RebuildsOutputAndSeeksToRetainedPosition() throws {
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        try service.play()
+        mockClock.advanceSeconds(2.0)
+        service.pause()
+        mockAudio.reset()
+        mockDecoder.lastSeekPosition = nil
+
+        try service.play()
+
+        XCTAssertEqual(mockAudio.configureCallCount, 1)
+        XCTAssertEqual(mockAudio.setVolumeCallCount, 1)
+        XCTAssertEqual(mockDecoder.lastSeekPosition ?? -1.0, 2.0, accuracy: 0.1)
+        XCTAssertEqual(service.state, .playing)
+        XCTAssertTrue(mockAudio.startCalled)
+    }
+
+    func testPlay_AfterInvalidation_ResumesFromPreservedPosition() throws {
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        try service.play()
+        mockClock.advanceSeconds(3.0)
+        mockAudio.simulateInvalidation()
+        XCTAssertEqual(service.state, .paused)
+        mockAudio.reset()
+        mockDecoder.lastSeekPosition = nil
+
+        try service.play()
+
+        XCTAssertEqual(mockAudio.configureCallCount, 1)
+        XCTAssertEqual(mockAudio.setVolumeCallCount, 1)
+        XCTAssertEqual(mockDecoder.lastSeekPosition ?? -1.0, 3.0, accuracy: 0.1)
+        XCTAssertEqual(service.state, .playing)
+        XCTAssertEqual(service.currentTime(), 3.0, accuracy: 0.1)
+    }
+
+    func testPlay_FailedRebuild_TransitionsToError_ThenRetries() throws {
+        try service.load(url: URL(fileURLWithPath: "/test/audio.mp3"))
+        try service.play()
+        mockClock.advanceSeconds(3.0)
+        mockAudio.simulateInvalidation()
+
+        // First resume fails: the output cannot be configured.
+        mockAudio.shouldThrowOnConfigure = .invalidState("Simulated configure failure")
+        XCTAssertThrowsError(try service.play())
+        guard case .error = service.state else {
+            return XCTFail("Expected .error after failed rebuild, got \(service.state)")
+        }
+
+        // Retry once the output cooperates: full rebuild, position retained.
+        mockAudio.shouldThrowOnConfigure = nil
+        mockAudio.reset()
+        mockDecoder.lastSeekPosition = nil
+
+        try service.play()
+
+        XCTAssertEqual(mockAudio.configureCallCount, 1)
+        XCTAssertEqual(mockDecoder.lastSeekPosition ?? -1.0, 3.0, accuracy: 0.1)
+        XCTAssertEqual(service.state, .playing)
+    }
+
+    // MARK: - Invalidation Handler Lifetime
+
+    func testInit_DoesNotRetainServiceThroughAudioPort() {
+        var localService: DefaultPlaybackService? = DefaultPlaybackService(
+            decoder: mockDecoder,
+            audio: mockAudio,
+            time: mockClock,
+            logger: mockLogger,
+            eq: mockEQ
+        )
+        weak var weakService = localService
+
+        localService = nil
+
+        XCTAssertNil(weakService, "AudioOutputPort.onInvalidated must capture the service weakly")
+    }
+
     // MARK: - State Transition Tests
     
     func testStateTransition_StoppedToPaused() throws {

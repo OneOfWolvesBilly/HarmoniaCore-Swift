@@ -53,6 +53,12 @@ public final class DefaultPlaybackService: PlaybackService {
         self.time = time
         self.logger = logger
         self.eq = eq
+
+        // The port holds this closure strongly; the weak capture keeps the
+        // port from keeping the service alive.
+        audio.onInvalidated = { [weak self] in
+            self?.handleOutputInvalidated()
+        }
     }
     
     // MARK: - PlaybackService Implementation
@@ -123,6 +129,25 @@ public final class DefaultPlaybackService: PlaybackService {
             }
             
             do {
+                // Rebuild the output on every start. Recovery from an output
+                // invalidation must not depend on the invalidation having been
+                // observed — some are undetectable — so there is no flag: the
+                // output is reconfigured unconditionally, the volume re-applied
+                // (configure may reset it), and the decoder seeked back to the
+                // retained position (frames decoded ahead were discarded when
+                // the output stopped, so the decoder is past the audible
+                // position).
+                guard let info = streamInfo else {
+                    throw CoreError.invalidState("No stream info available")
+                }
+                try audio.configure(
+                    sampleRate: info.sampleRate,
+                    channels: info.channels,
+                    framesPerBuffer: framesPerBuffer
+                )
+                audio.setVolume(currentVolume)
+                try decoder.seek(handle, toSeconds: lastKnownPosition)
+
                 // Start audio output
                 try audio.start()
                 
@@ -280,6 +305,23 @@ public final class DefaultPlaybackService: PlaybackService {
         }
     }
     
+    /// Invoked by the audio output on an implementation-owned thread when it
+    /// can no longer render (see AudioOutputPort.onInvalidated). The port is
+    /// already stopped and unconfigured; the next play() rebuilds it.
+    private func handleOutputInvalidated() {
+        lock.withLock {
+            guard _state == .playing else { return }
+
+            // Freeze the position before leaving .playing —
+            // calculateCurrentPosition() returns lastKnownPosition once the
+            // state is .paused.
+            lastKnownPosition = calculateCurrentPosition()
+            audio.stop()
+            _state = .paused
+            logger.info("Audio output invalidated; paused at \(lastKnownPosition)s")
+        }
+    }
+
     private func cleanupCurrentTrack() {
         if let handle = currentHandle {
             decoder.close(handle)

@@ -29,6 +29,19 @@
 //  render() call. render() then detects isStarted == false and returns 0,
 //  causing the playback loop to exit cleanly.
 //
+//  INVALIDATION
+//  ------------
+//  AVAudioEngine can lose the ability to reach the speakers while this
+//  adapter still believes it is playing: the engine stops itself on a
+//  configuration change (and posts AVAudioEngineConfigurationChange), or a
+//  default-output-device change leaves its internal aggregate device stale —
+//  isRunning stays true, completion handlers keep firing, no sound comes
+//  out, and no notification is guaranteed. Because the stale case is not
+//  observable, configure() never reuses an engine: every call discards the
+//  current engine and builds a fresh one. The notification, when it does
+//  arrive, is handled off-thread (AVFoundation forbids deallocating the
+//  engine inside the handler) and reported to the owner via onInvalidated.
+//
 
 import Foundation
 import AVFoundation
@@ -37,7 +50,9 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
 
     private let logger: LoggerPort
 
-    private let engine = AVAudioEngine()
+    /// Replaceable: configure() always discards the current engine and
+    /// builds a fresh one (see INVALIDATION in the file header).
+    private var engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
 
     /// EQ node spliced between `playerNode` and `engine.mainMixerNode`
@@ -61,10 +76,47 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
     private static let maxInFlight = 2
     private var bufferSemaphore = DispatchSemaphore(value: maxInFlight)
 
+    /// Invalidation callback (AudioOutputPort). Guarded by `lock`; invoked
+    /// on `invalidationQueue` with the lock released.
+    private var _onInvalidated: (() -> Void)?
+
+    public var onInvalidated: (() -> Void)? {
+        get { lock.withLock { _onInvalidated } }
+        set { lock.withLock { _onInvalidated = newValue } }
+    }
+
+    /// Serial queue the configuration-change notification is hopped onto.
+    /// AVFoundation posts on an unspecified thread and forbids deallocating
+    /// the engine inside the handler, so the handler itself does no work.
+    private let invalidationQueue = DispatchQueue(
+        label: "com.harmoniacore.audio-output.invalidation")
+
+    /// Observer token for AVAudioEngineConfigurationChange. Registered once,
+    /// for all objects; the handler filters by engine identity. A notification
+    /// posted without an object would be invisible to an engine-scoped
+    /// observer and would disable invalidation detection entirely.
+    private var configObserver: NSObjectProtocol?
+
     public init(logger: LoggerPort, eq: AVAudioUnitEQAdapter? = nil) {
         self.logger = logger
         self.eq = eq
         engine.attach(playerNode)
+        configObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: nil,
+            queue: nil
+        ) { [weak self] note in
+            let objectID = note.object.map { ObjectIdentifier($0 as AnyObject) }
+            self?.invalidationQueue.async { [weak self] in
+                self?.handleInvalidation(notificationObjectID: objectID)
+            }
+        }
+    }
+
+    deinit {
+        if let configObserver {
+            NotificationCenter.default.removeObserver(configObserver)
+        }
     }
 
     public func configure(sampleRate: Double,
@@ -84,7 +136,20 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
             throw CoreError.invalidState("Failed to create AVAudioFormat")
         }
 
-        engine.disconnectNodeOutput(playerNode)
+        // Discard the current engine and start from a fresh one. An engine can
+        // become unusable without any observable signal (a stale internal
+        // aggregate device after a default-output change reports isRunning and
+        // fires completion handlers while reaching no speaker), so no engine is
+        // ever reused across configurations. The old engine is released here,
+        // on the caller's thread — it must not be deallocated inside the
+        // configuration-change notification handler.
+        playerNode.stop()
+        if playerNode.engine === engine {
+            engine.detach(playerNode)
+        }
+        eq?.detach(from: engine)
+        engine = AVAudioEngine()
+        engine.attach(playerNode)
         if let eq = eq {
             // Splice EQ into the chain: playerNode → eq → mainMixerNode.
             // The EQ adapter handles both connect calls atomically and
@@ -114,6 +179,11 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
         defer { lock.unlock() }
 
         guard !isStarted else { return }
+
+        guard isConfigured else {
+            throw CoreError.invalidState(
+                "Audio output is not configured — call configure(...) first")
+        }
 
         try engine.start()
         playerNode.play()
@@ -249,6 +319,50 @@ public final class AVAudioEngineOutputAdapter: AudioOutputPort {
     }
 
     public func setVolume(_ volume: Float) {
+        lock.lock()
+        defer { lock.unlock() }
         engine.mainMixerNode.outputVolume = max(0.0, min(1.0, volume))
+    }
+
+    /// Runs on `invalidationQueue`. Performs the port-contract invalidation
+    /// sequence, then reports to the owner.
+    private func handleInvalidation(notificationObjectID: ObjectIdentifier?) {
+        lock.lock()
+
+        // Ours if the notification carries the engine this adapter currently
+        // owns, or no object at all. Notifications for other engines in the
+        // host process are ignored.
+        if let notificationObjectID, notificationObjectID != ObjectIdentifier(engine) {
+            lock.unlock()
+            return
+        }
+
+        // Coalesce: already invalidated (or never configured) — the owner was
+        // told once; the next report requires a successful configure() first.
+        guard isConfigured || isStarted else {
+            lock.unlock()
+            return
+        }
+
+        playerNode.stop()
+        isStarted = false
+        isConfigured = false
+
+        let semaphore = bufferSemaphore
+        let callback = _onInvalidated
+        lock.unlock()
+
+        // playerNode.stop() cancels scheduled buffers without invoking their
+        // completion handlers; release any thread blocked in render(). It then
+        // re-checks isStarted and returns 0.
+        for _ in 0..<Self.maxInFlight {
+            semaphore.signal()
+        }
+
+        logger.info("Audio output invalidated; reconfiguration required")
+
+        // Invoked with no lock held so the handler may call back into this
+        // adapter (stop/configure/start/setVolume) re-entrantly.
+        callback?()
     }
 }

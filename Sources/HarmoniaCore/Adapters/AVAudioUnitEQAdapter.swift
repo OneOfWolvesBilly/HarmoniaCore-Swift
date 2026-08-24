@@ -112,6 +112,17 @@ public final class AVAudioUnitEQAdapter: EQPort {
         engine.connect(eq,       to: next, format: format)
     }
 
+    /// Removes the EQ node from `engine`, so it can be attached to a
+    /// replacement engine. Safe to call when the node is not attached to
+    /// `engine` (no-op).
+    ///
+    /// Counterpart of `attach(to:between:and:format:)`, used by the audio
+    /// output adapter when it discards an engine.
+    public func detach(from engine: AVAudioEngine) {
+        guard eq.engine === engine else { return }
+        engine.detach(eq)
+    }
+
     // MARK: - Private helpers
 
     private static func clamp(_ value: Float) -> Float {
